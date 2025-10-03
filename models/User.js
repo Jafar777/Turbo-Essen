@@ -1,3 +1,4 @@
+// models/User.js
 import mongoose from 'mongoose';
 
 const UserSchema = new mongoose.Schema({
@@ -24,23 +25,20 @@ const UserSchema = new mongoose.Schema({
     required: [true, 'Password is required'],
     select: false
   },
-  coins: {
-    type: Number,
-    default: 50
+  role: {
+    type: String,
+    enum: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'],
+    default: 'user'
   },
-  likedProperties: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Property'
-  }],
   image: {
     type: String,
     default: null
   }
+
 }, {
   timestamps: true
 });
 
 // Create unique index for email
-UserSchema.index({ email: 1 }, { unique: true });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

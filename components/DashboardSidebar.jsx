@@ -2,6 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { TbLayoutSidebarRightCollapse, TbLayoutSidebarLeftCollapse } from 'react-icons/tb';
 import { FaHome } from 'react-icons/fa';
 import { MdManageAccounts } from 'react-icons/md';
@@ -17,20 +18,27 @@ import { IoNotifications } from 'react-icons/io5';
 
 const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
-  const menuItems = [
-    { href: '/dashboard', label: 'Home', icon: FaHome },
-    { href: '/dashboard/users', label: 'Users', icon: HiMiniUsers },
-    { href: '/dashboard/account', label: 'User Settings', icon: MdManageAccounts },
-    { href: '/dashboard/restaurants', label: 'Restaurant Management', icon: IoRestaurantSharp },
-    { href: '/dashboard/cart', label: 'Cart', icon: FaCartShopping },
-    { href: '/dashboard/orders', label: 'Orders', icon: LuPackageSearch },
-    { href: '/dashboard/reviews', label: 'Reviews', icon: MdOutlineRateReview },
-    { href: '/dashboard/languages', label: 'Languages', icon: FaLanguage },
-    { href: '/dashboard/performance', label: 'Performance', icon: FcSalesPerformance },
-    { href: '/dashboard/reports', label: 'Reports', icon: MdReport },
-    { href: '/dashboard/notifications', label: 'Notifications', icon: IoNotifications },
+  // Define all possible menu items
+  const allMenuItems = [
+    { href: '/dashboard', label: 'Home', icon: FaHome, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
+    { href: '/dashboard/users', label: 'Users', icon: HiMiniUsers, roles: ['admin'] },
+    { href: '/dashboard/account', label: 'User Settings', icon: MdManageAccounts, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
+    { href: '/dashboard/restaurants', label: 'Restaurant Management', icon: IoRestaurantSharp, roles: ['admin', 'restaurant_owner'] },
+    { href: '/dashboard/cart', label: 'Cart', icon: FaCartShopping, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
+    { href: '/dashboard/orders', label: 'Orders', icon: LuPackageSearch, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery'] },
+    { href: '/dashboard/reviews', label: 'Reviews', icon: MdOutlineRateReview, roles: ['admin', 'restaurant_owner', 'user'] },
+    { href: '/dashboard/languages', label: 'Languages', icon: FaLanguage, roles: ['admin'] },
+    { href: '/dashboard/performance', label: 'Performance', icon: FcSalesPerformance, roles: ['admin', 'restaurant_owner'] },
+    { href: '/dashboard/reports', label: 'Reports', icon: MdReport, roles: ['admin'] },
+    { href: '/dashboard/notifications', label: 'Notifications', icon: IoNotifications, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
   ];
+
+  // Filter menu items based on user role
+  const menuItems = allMenuItems.filter(item => 
+    item.roles.includes(session?.user?.role || 'user')
+  );
 
   return (
     <div className={`bg-white shadow-lg fixed h-full transition-all duration-300 ${
@@ -53,8 +61,8 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
         </button>
       </div>
 
-      {/* Navigation Menu with Scroll */}
-      <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-80px)]">
+      {/* Navigation Menu with Improved Scrolling */}
+      <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-80px)] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -73,7 +81,7 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
               <Icon 
                 className={`flex-shrink-0 ${
                   isCollapsed ? 'w-6 h-6' : 'w-5 h-5 mr-3'
-                } ${item.label === 'Performance' ? '' : ''}`}
+                }`}
               />
               {!isCollapsed && (
                 <span className="font-medium">{item.label}</span>

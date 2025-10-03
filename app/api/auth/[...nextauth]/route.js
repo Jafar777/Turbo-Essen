@@ -46,7 +46,7 @@ const authOptions = {
             name: `${user.firstName} ${user.lastName}`,
             email: user.email,
             image: user.image || null,
-            likedProperties: likedProperties.map(id => id.toString())
+
           }
         } catch (error) {
           console.error('Authorization error:', error);
@@ -70,6 +70,8 @@ const authOptions = {
         token.email = user.email;
         token.name = user.name;
         token.image = user.image;
+                token.role = user.role; // Add role to token
+
       }
       return token;
     },
@@ -87,8 +89,10 @@ const authOptions = {
         lastName: dbUser.lastName,
         email: dbUser.email,
         image: dbUser.image,
+                role: dbUser.role, // Add role to session
+
         name: `${dbUser.firstName} ${dbUser.lastName}`,
-        likedProperties: dbUser.likedProperties.map(id => id.toString())
+
       };
       
       return session;
