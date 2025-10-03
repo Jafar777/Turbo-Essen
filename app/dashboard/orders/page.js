@@ -1,0 +1,27 @@
+// app/dashboard/orders/page.js
+'use client';
+import { useSession } from 'next-auth/react';
+
+export default function OrdersPage() {
+  const { data: session } = useSession();
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="bg-white rounded-lg shadow-sm border p-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">Order Management</h1>
+        <p className="text-lg text-gray-600 mb-4">
+          Track your orders, {session?.user?.firstName}!
+        </p>
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">Order Features</h2>
+          <ul className="list-disc list-inside space-y-2 text-gray-600">
+            <li>View order history</li>
+            <li>Track current orders</li>
+            <li>Manage returns</li>
+            <li>Download invoices</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
