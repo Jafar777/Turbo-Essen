@@ -5,8 +5,11 @@ import { useSession } from 'next-auth/react';
 export default function Dashboard() {
   const { data: session } = useSession();
 
+
   return (
     <div className="max-w-6xl mx-auto">
+
+
       <div className="bg-white rounded-lg shadow-sm border p-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">
           Welcome to your Dashboard, {session?.user?.name}!

@@ -34,24 +34,21 @@ export default function DashboardLayout({ children }) {
     const toggleSidebar = () => {
         setIsSidebarCollapsed(!isSidebarCollapsed);
     };
-
-    return (
-        <div className="min-h-screen bg-gray-50">
-            <Navbar />
-            {/* Added pt-24 to push content below navbar */}
-            <div className="flex pt-24"> 
-                <DashboardSidebar
-                    isCollapsed={isSidebarCollapsed}
-                    toggleSidebar={toggleSidebar}
-                />
-                <main className={`flex-1 transition-all duration-300 ${
-                    isSidebarCollapsed ? 'ml-20' : 'ml-64'
-                }`}>
-                    <div className="p-6">
-                        {children}
-                    </div>
-                </main>
-            </div>
+return (
+  <div className="min-h-screen bg-gray-50 flex flex-col">
+    <Navbar />
+    <div className="flex flex-1 pt-24 h-screen overflow-hidden">
+      <DashboardSidebar
+        isCollapsed={isSidebarCollapsed}
+        toggleSidebar={toggleSidebar}
+      />
+      <main className={`flex-1 transition-all duration-300 ${
+        isSidebarCollapsed ? 'ml-20' : 'ml-64'
+      } overflow-y-auto`}>
+        <div className="p-6">
+          {children}
         </div>
-    );
-}
+      </main>
+    </div>
+  </div>
+);}

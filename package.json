@@ -26,7 +26,8 @@
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",
     "resend": "^6.1.2",
-    "smoothscroll-polyfill": "^0.4.4"
+    "smoothscroll-polyfill": "^0.4.4",
+    "tailwind-scrollbar": "^4.0.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

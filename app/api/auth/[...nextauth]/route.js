@@ -79,7 +79,7 @@ const authOptions = {
     async session({ session, token }) {
       await dbConnect();
       const dbUser = await User.findById(token.id)
-        .select('firstName lastName email image likedProperties');
+        .select('firstName lastName email image role');
       
       if (!dbUser) return session;
       
@@ -89,7 +89,7 @@ const authOptions = {
         lastName: dbUser.lastName,
         email: dbUser.email,
         image: dbUser.image,
-                role: dbUser.role, // Add role to session
+        role: dbUser.role, // Add role to session
 
         name: `${dbUser.firstName} ${dbUser.lastName}`,
 
