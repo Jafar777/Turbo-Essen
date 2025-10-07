@@ -21,7 +21,7 @@ function HomeContent() {
           <FoodAnimation />
           
           {/* Order Now Section - Added new section */}
-          <section id="order-now" className="min-h-screen bg-red-50 pt-16">
+          <section id="order-now" className="min-h-screen bg-white pt-16">
             <div className="max-w-4xl mx-auto px-4 py-16">
               <h2 className="text-4xl font-bold text-center text-gray-900 mb-8">
                 Order Now
@@ -55,10 +55,10 @@ function HomeContent() {
           </section>
           
           {/* Placeholder sections for navigation */}
-          <section id="features" className="min-h-screen bg-white pt-16"></section>
-          <section id="clients" className="min-h-screen bg-gray-50 pt-16"></section>
-          <section id="pricing" className="min-h-screen bg-white pt-16"></section>
-          <section id="contacts" className="min-h-screen bg-gray-50 pt-16"></section>
+          <section id="features" className="min-h-screen bg-gray-50 pt-16"></section>
+          <section id="clients" className="min-h-screen bg-white pt-16"></section>
+          <section id="pricing" className="min-h-screen bg-gray-50 pt-16"></section>
+          <section id="contacts" className="min-h-screen bg-white pt-16"></section>
         </main>
       </div>
   );

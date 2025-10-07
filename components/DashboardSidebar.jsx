@@ -11,9 +11,11 @@ import { FaCartShopping } from 'react-icons/fa6';
 import { LuPackageSearch } from 'react-icons/lu';
 import { MdOutlineRateReview } from 'react-icons/md';
 import { FaLanguage } from 'react-icons/fa6';
-import { FcSalesPerformance } from 'react-icons/fc';
+import { IoStatsChartSharp } from "react-icons/io5";
 import { MdReport } from 'react-icons/md';
 import { IoNotifications } from 'react-icons/io5';
+import { MdOutlineAddBusiness } from "react-icons/md"; // Add this import
+import { IoDocuments } from "react-icons/io5";
 
 const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
   const pathname = usePathname();
@@ -23,12 +25,15 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
     { href: '/dashboard', label: 'Home', icon: FaHome, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
     { href: '/dashboard/users', label: 'Users', icon: HiMiniUsers, roles: ['admin'] },
     { href: '/dashboard/account', label: 'User Settings', icon: MdManageAccounts, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
+       // Add the new menu item here - visible to 'user' role only
+    { href: '/dashboard/apply-restaurant', label: 'Apply as a Restaurant', icon: MdOutlineAddBusiness, roles: ['user'] },
+      { href: '/dashboard/applications', label: 'Restaurant Applications', icon: IoDocuments, roles: ['admin'] },
     { href: '/dashboard/restaurants', label: 'Restaurant Management', icon: IoRestaurantSharp, roles: ['admin', 'restaurant_owner'] },
     { href: '/dashboard/cart', label: 'Cart', icon: FaCartShopping, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
     { href: '/dashboard/orders', label: 'Orders', icon: LuPackageSearch, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery'] },
     { href: '/dashboard/reviews', label: 'Reviews', icon: MdOutlineRateReview, roles: ['admin', 'restaurant_owner', 'user'] },
     { href: '/dashboard/languages', label: 'Languages', icon: FaLanguage, roles: ['admin'] },
-    { href: '/dashboard/performance', label: 'Performance', icon: FcSalesPerformance, roles: ['admin', 'restaurant_owner'] },
+    { href: '/dashboard/performance', label: 'Performance', icon: IoStatsChartSharp, roles: ['admin', 'restaurant_owner'] },
     { href: '/dashboard/reports', label: 'Reports', icon: MdReport, roles: ['admin'] },
     { href: '/dashboard/notifications', label: 'Notifications', icon: IoNotifications, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
   ];
@@ -37,7 +42,8 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
     item.roles.includes(session?.user?.role || 'user')
   );
 
-return (
+  // The rest of your component remains exactly the same...
+  return (
     <div className={`bg-white shadow-lg fixed left-0 top-24 bottom-0 transition-all duration-300 flex flex-col z-40 ${
       isCollapsed ? 'w-20' : 'w-64'
     }`}>

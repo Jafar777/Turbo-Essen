@@ -4,13 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { IoMenu } from "react-icons/io5";
 import { AiOutlineDashboard } from "react-icons/ai";
-import { FaSignOutAlt } from "react-icons/fa";
-import { FaLanguage } from 'react-icons/fa6'; // Add this import
-import { FaCartShopping } from 'react-icons/fa6'; // Add this import
+import { FaSignOutAlt, FaBell } from "react-icons/fa";
+import { FaLanguage } from 'react-icons/fa6'; 
+import { FaCartShopping } from 'react-icons/fa6'; 
 import { useLanguage } from "@/context/LanguageContext";
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
+import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
+import useSWR from 'swr';
+
+
+const fetcher = (url) => fetch(url).then(res => res.json());
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -23,7 +28,17 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
+// components/Navbar.jsx - Add this line with your other useRef declarations
+const notificationRef = useRef(null); // Add this line
+    // Fetch notifications using SWR
+  const { data: notificationData, mutate: mutateNotifications } = useSWR(
+    session ? '/api/notifications' : null,
+    fetcher,
+    { refreshInterval: 30000 } // Refresh every 30 seconds
+  );
 
+  const notifications = notificationData?.notifications || [];
+  const unreadCount = notificationData?.unreadCount || 0;
   const isDashboard = pathname?.startsWith('/dashboard');
 
   useEffect(() => {
@@ -59,6 +74,58 @@ export default function Navbar() {
     };
   }, []);
 
+    const markAsRead = async (notificationId) => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId })
+      });
+      mutateNotifications(); // Revalidate SWR cache
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllAsRead: true })
+      });
+      mutateNotifications();
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'application_submitted':
+        return '📋';
+      case 'application_accepted':
+        return '✅';
+      case 'application_rejected':
+        return '❌';
+      case 'new_order':
+        return '🛒';
+      default:
+        return '🔔';
+    }
+  };
+
+  const getNotificationTime = (createdAt) => {
+    const now = new Date();
+    const created = new Date(createdAt);
+    const diffInHours = (now - created) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
+    return `${Math.floor(diffInHours / 24)}d ago`;
+  };
+
+
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -93,7 +160,7 @@ export default function Navbar() {
   const navItems = [
     { id: "home", label: "Home", href: "/" },
     { id: "features", label: "Features", href: "/#features" },
-    { id: "order-now", label: "Order Now", href: "/#order-now" }, // New Order Now link
+    { id: "order-now", label: "Order Now", href: "/#order-now" },
     { id: "clients", label: "Our Clients", href: "/#clients" },
     { id: "pricing", label: "Pricing", href: "/#pricing" },
     { id: "contacts", label: "Contacts", href: "/#contacts" }
@@ -140,6 +207,82 @@ export default function Navbar() {
 
           {/* Right side items */}
           <div className="flex items-center space-x-4">
+                      {/* Notifications Dropdown */}
+            {session && (
+              <div className="relative" ref={notificationRef}>
+                <Menu>
+                  <MenuButton className="relative p-2 rounded-lg hover:bg-black/10 transition-colors">
+                    <FaBell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </MenuButton>
+                  
+                  <MenuItems 
+                    anchor="bottom" 
+                    className="w-80 bg-white rounded-lg shadow-lg border py-2 z-50 max-h-96 overflow-y-auto"
+                  >
+                    <div className="px-4 py-2 border-b border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-semibold text-gray-900">Notifications</h3>
+                        {unreadCount > 0 && (
+                          <button 
+                            onClick={markAllAsRead}
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            Mark all as read
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-gray-500">
+                        No notifications
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <MenuItem key={notification._id}>
+                          <div 
+                            className={`block w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer ${
+                              !notification.read ? 'bg-blue-50' : ''
+                            }`}
+                            onClick={() => markAsRead(notification._id)}
+                          >
+                            <div className="flex items-start space-x-3">
+                              <span className="text-lg">{getNotificationIcon(notification.type)}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {notification.title}
+                                </p>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {getNotificationTime(notification.createdAt)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </MenuItem>
+                      ))
+                    )}
+                    
+                    <div className="px-4 py-2 border-t border-gray-200">
+                      <Link 
+                        href="/dashboard/notifications"
+                        className="block text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        View all notifications
+                      </Link>
+                    </div>
+                  </MenuItems>
+                </Menu>
+              </div>
+            )}
+
             {/* Language Selector with Icon */}
             <div className="relative" ref={dropdownRef}>
               <button
