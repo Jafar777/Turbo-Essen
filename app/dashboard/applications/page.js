@@ -75,7 +75,7 @@ export default function ApplicationsPage() {
   if (status === 'loading' || loading) {
     return (
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border p-8">
+        <div className="bg-white rounded-lg shadow-sm  p-8">
           <div className="animate-pulse">Loading applications...</div>
         </div>
       </div>
@@ -88,8 +88,8 @@ export default function ApplicationsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 text-white">
+      <div className="bg-white rounded-lg shadow-sm  overflow-hidden">
+        <div className="bg-gradient-to-r from-[#ce5a46] to-[#D22E26] p-6 text-white">
           <h1 className="text-3xl font-bold">Restaurant Applications</h1>
           <p className="text-blue-100 mt-2">
             Review and manage restaurant applications

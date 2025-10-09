@@ -56,7 +56,7 @@ const updateUserRole = async (userId, newRole) => {
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border p-8">
+        <div className="bg-white rounded-lg shadow-sm p-8">
           <div className="animate-pulse">Loading users...</div>
         </div>
       </div>
@@ -65,11 +65,13 @@ const updateUserRole = async (userId, newRole) => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border p-4 md:p-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">Users Management</h1>
-        <p className="text-lg text-gray-600 mb-6">
-          Welcome to users management, {session?.user?.firstName}!
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-8">
+              <div className="bg-gradient-to-r from-[#ce5a46] to-[#D22E26] rounded-t-2xl p-6 text-white mb-8">
+        <h1 className="text-3xl font-bold">Users Management</h1>
+        <p className="text-amber-100 mt-2">
+           Welcome to users management, {session?.user?.firstName}!
         </p>
+      </div>
 
         {/* Responsive Users Table */}
         <div className="overflow-x-auto">

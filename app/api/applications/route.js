@@ -1,14 +1,14 @@
-// app/api/applications/route.js
 import { getServerSession } from "next-auth/next";
 import authOptions from "@/lib/authOptions";
 import dbConnect from '@/lib/dbConnect';
 import Application from '@/models/Application';
 import User from '@/models/User';
-
+import Restaurant from '@/models/Restaurant';
+import MenuCategory from '@/models/MenuCategory'; // Add this import
 import { notifyApplicationStatus } from '@/lib/notificationUtils';
 
 
-export async function GET() {
+export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -36,7 +36,6 @@ export async function GET() {
     });
   }
 }
-
 export async function PUT(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -60,6 +59,45 @@ export async function PUT(request) {
     }
 
     if (action === 'accept') {
+      // Create the restaurant first
+      const newRestaurant = new Restaurant({
+        name: application.restaurantName,
+        ownerId: application.userId._id,
+        description: application.description,
+        address: application.address,
+        phone: application.phone,
+        cuisineType: application.cuisineType,
+        location: application.location,
+        isActive: true
+      });
+
+      const savedRestaurant = await newRestaurant.save();
+
+      // Create default categories ONLY after restaurant is created
+      const defaultCategories = [
+        { name: 'Main Menu', order: 1 },
+        { name: 'Side Menu', order: 2 },
+        { name: 'Beverages', order: 3 }
+      ];
+
+      // Check for existing categories first to prevent duplicates
+      for (const categoryData of defaultCategories) {
+        const existingCategory = await MenuCategory.findOne({
+          restaurantId: savedRestaurant._id,
+          name: categoryData.name
+        });
+
+        if (!existingCategory) {
+          await MenuCategory.create({
+            restaurantId: savedRestaurant._id,
+            name: categoryData.name,
+            order: categoryData.order,
+            isActive: true
+          });
+        }
+      }
+
+      // Update user role and application status
       await User.findByIdAndUpdate(application.userId._id, { role: 'restaurant_owner' });
       application.status = 'approved';
       application.reviewedAt = new Date();

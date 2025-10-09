@@ -149,14 +149,14 @@ const handleSubmit = async (e) => {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header with Restaurant Theme */}
-      <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-t-2xl p-6 text-white mb-8">
+      <div className="bg-gradient-to-r from-[#ce5a46] to-[#D22E26] rounded-t-2xl p-6 text-white mb-8">
         <h1 className="text-3xl font-bold">Apply as a Restaurant</h1>
         <p className="text-amber-100 mt-2">
           Fill out your restaurant details and pinpoint your exact location on the map
         </p>
       </div>
 
-      <div className="bg-white rounded-b-2xl shadow-lg border border-amber-100 overflow-hidden">
+      <div className="bg-white rounded-b-2xl shadow-lg  border-amber-100 overflow-hidden">
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Basic Information Section */}

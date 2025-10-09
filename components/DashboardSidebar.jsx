@@ -28,7 +28,8 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
        // Add the new menu item here - visible to 'user' role only
     { href: '/dashboard/apply-restaurant', label: 'Apply as a Restaurant', icon: MdOutlineAddBusiness, roles: ['user'] },
       { href: '/dashboard/applications', label: 'Restaurant Applications', icon: IoDocuments, roles: ['admin'] },
-    { href: '/dashboard/restaurants', label: 'Restaurant Management', icon: IoRestaurantSharp, roles: ['admin', 'restaurant_owner'] },
+    { href: '/dashboard/restaurant', label: 'Restaurant Management', icon: IoRestaurantSharp, roles: ['restaurant_owner'] },
+    { href: '/dashboard/restaurants-management', label: 'Restaurants Management', icon: IoRestaurantSharp, roles: ['admin'] },
     { href: '/dashboard/cart', label: 'Cart', icon: FaCartShopping, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
     { href: '/dashboard/orders', label: 'Orders', icon: LuPackageSearch, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery'] },
     { href: '/dashboard/reviews', label: 'Reviews', icon: MdOutlineRateReview, roles: ['admin', 'restaurant_owner', 'user'] },
