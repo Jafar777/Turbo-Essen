@@ -267,7 +267,7 @@ const handleSubmit = async (e) => {
                 Set Your Exact Location
               </h3>
               <p className="text-sm text-gray-600">
-                Click on the map to mark your restaurant's precise location. Selected coordinates: 
+                Click on the map to mark your restaurants precise location. Selected coordinates: 
                 <span className="font-mono text-amber-600 ml-2">
                   {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
                 </span>
