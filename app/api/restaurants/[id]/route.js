@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import authOptions from "@/lib/authOptions";
 import dbConnect from '@/lib/dbConnect';
 import Restaurant from '@/models/Restaurant';
+import { NextResponse } from 'next/server';
+
 
 export async function PUT(request, { params }) {
   try {
@@ -42,5 +44,37 @@ export async function PUT(request, { params }) {
   } catch (error) {
     console.error('Error updating restaurant:', error);
     return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 });
+  }
+}
+
+export async function GET(request, { params }) {
+  try {
+    const { id } = await params; // Get the restaurant ID from the URL
+    await dbConnect();
+    
+    // Find the restaurant by its ID
+    const restaurant = await Restaurant.findById(id).select('name description address phone cuisineType avatar banner');
+    
+    if (!restaurant) {
+      return NextResponse.json({ success: false, error: 'Restaurant not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      restaurant: {
+        _id: restaurant._id.toString(),
+        name: restaurant.name,
+        description: restaurant.description,
+        address: restaurant.address,
+        phone: restaurant.phone,
+        cuisineType: restaurant.cuisineType,
+        avatar: restaurant.avatar,
+        banner: restaurant.banner
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching restaurant:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch restaurant' }, { status: 500 });
   }
 }
