@@ -20,7 +20,16 @@ const RestaurantSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-    promoCodes: [{
+  // Add avatar and banner fields
+  avatar: {
+    type: String, // Cloudinary URL for profile image
+    default: ''
+  },
+  banner: {
+    type: String, // Cloudinary URL for banner image
+    default: ''
+  },
+  promoCodes: [{
     code: {
       type: String,
       required: true,

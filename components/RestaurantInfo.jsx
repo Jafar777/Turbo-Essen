@@ -1,8 +1,12 @@
 // components/RestaurantInfo.jsx
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { CldUploadWidget } from 'next-cloudinary';
+
+
 
 export default function RestaurantInfo({ restaurant, onUpdate }) {
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -10,7 +14,7 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
     phone: '',
     cuisineType: ''
   });
-  
+
   // Promo code management state
   const [promoForm, setPromoForm] = useState({
     code: '',
@@ -21,7 +25,7 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
     usageLimit: '',
     usedCount: 0
   });
-  
+
   const [promoCodes, setPromoCodes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
@@ -29,6 +33,21 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
   const [activePromoTab, setActivePromoTab] = useState('active');
   const [editingPromo, setEditingPromo] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
+
+  const scrollPositionRef = useRef(0);
+  const formRef = useRef(null);
+  const imagesSectionRef = useRef(null);
+
+
+  useEffect(() => {
+    return () => {
+      // Ensure scroll is unlocked when component unmounts
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'static';
+    };
+  }, []);
 
   useEffect(() => {
     if (restaurant) {
@@ -39,10 +58,47 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
         phone: restaurant.phone || '',
         cuisineType: restaurant.cuisineType || ''
       });
+      setAvatarUrl(restaurant.avatar || '');
+      setBannerUrl(restaurant.banner || '');
       fetchPromoCodes();
     }
   }, [restaurant]);
 
+
+  const saveScrollPosition = () => {
+    scrollPositionRef.current = window.pageYOffset || document.documentElement.scrollTop;
+    console.log('Saved scroll position:', scrollPositionRef.current);
+
+    // Also save to sessionStorage as backup
+    sessionStorage.setItem('restaurantInfoScrollPos', scrollPositionRef.current.toString());
+  };
+
+  // Restore scroll position after upload
+  const restoreScrollPosition = () => {
+    const savedPosition = scrollPositionRef.current ||
+      parseInt(sessionStorage.getItem('restaurantInfoScrollPos') || '0');
+
+    console.log('Restoring scroll position:', savedPosition);
+
+    // Use requestAnimationFrame for better timing
+    requestAnimationFrame(() => {
+      window.scrollTo(0, savedPosition);
+    });
+
+    // Clear stored position after use
+    sessionStorage.removeItem('restaurantInfoScrollPos');
+  };
+
+
+  // Scroll to specific section
+  const scrollToSection = (sectionRef) => {
+    if (sectionRef.current) {
+      sectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
   const fetchPromoCodes = async () => {
     try {
       setPromoLoading(true);
@@ -56,6 +112,73 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
       setMessage({ type: 'error', text: 'Failed to load promo codes' });
     } finally {
       setPromoLoading(false);
+    }
+  };
+
+  const handleAvatarUpload = (result) => {
+    if (result.event === 'success') {
+      console.log('Avatar upload successful, restoring scroll...');
+      setAvatarUrl(result.info.secure_url);
+
+      // Force restore scroll and ensure it's not locked
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'static';
+
+      setTimeout(() => {
+        restoreScrollPosition();
+      }, 100);
+    }
+  };
+
+  const handleBannerUpload = (result) => {
+    if (result.event === 'success') {
+      console.log('Banner upload successful, restoring scroll...');
+      setBannerUrl(result.info.secure_url);
+
+      // Force restore scroll and ensure it's not locked
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'static';
+
+      setTimeout(() => {
+        restoreScrollPosition();
+      }, 100);
+    }
+  };
+
+
+
+  const handleImageDelete = async (imageType) => {
+    if (!confirm(`Are you sure you want to remove the ${imageType} image?`)) {
+      return;
+    }
+
+    saveScrollPosition(); // Save position before deletion
+
+    try {
+      // Remove from local state immediately
+      if (imageType === 'avatar') {
+        setAvatarUrl('');
+      } else {
+        setBannerUrl('');
+      }
+
+      // Update in database
+      const response = await fetch(`/api/restaurants/${restaurant._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          [imageType]: ''
+        })
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: `${imageType} image removed successfully!` });
+        onUpdate();
+        restoreScrollPosition(); // Restore after successful deletion
+      }
+    } catch (error) {
+      console.error('Error removing image:', error);
+      setMessage({ type: 'error', text: `Failed to remove ${imageType} image` });
     }
   };
 
@@ -89,10 +212,10 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
     }
 
     try {
-      const url = isEditing 
+      const url = isEditing
         ? `/api/restaurants/${restaurant._id}/promo-codes/${editingPromo._id}`
         : `/api/restaurants/${restaurant._id}/promo-codes`;
-      
+
       const method = isEditing ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -104,11 +227,11 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
           usageLimit: promoForm.usageLimit ? parseInt(promoForm.usageLimit) : null
         })
       });
-      
+
       if (response.ok) {
-        setMessage({ 
-          type: 'success', 
-          text: `Promo code ${isEditing ? 'updated' : 'added'} successfully!` 
+        setMessage({
+          type: 'success',
+          text: `Promo code ${isEditing ? 'updated' : 'added'} successfully!`
         });
         resetPromoForm();
         fetchPromoCodes();
@@ -124,11 +247,11 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
   };
 
   const resetPromoForm = () => {
-    setPromoForm({ 
-      code: '', 
-      discountType: 'percentage', 
-      discountValue: '', 
-      isActive: true, 
+    setPromoForm({
+      code: '',
+      discountType: 'percentage',
+      discountValue: '',
+      isActive: true,
       validUntil: '',
       usageLimit: '',
       usedCount: 0
@@ -164,7 +287,11 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          avatar: avatarUrl,
+          banner: bannerUrl
+        }),
       });
 
       if (response.ok) {
@@ -237,10 +364,9 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Restaurant Information Form */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-2xl font-bold text-gray-800 mb-6">Restaurant Information</h3>
+    <div className="space-y-8" style={{ overflow: 'visible' }}>
+      <div className="bg-white rounded-lg border border-gray-200 p-6" style={{ overflow: 'visible' }}>
+        <h3 className="text-2xl font-bold text-gray-800 mb-6">Restaurant Images</h3>
         
         {message.text && (
           <div className={`mb-6 p-4 rounded-lg ${
@@ -248,6 +374,152 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
               ? 'bg-green-50 text-green-800 border border-green-200' 
               : 'bg-red-50 text-red-800 border border-red-200'
           }`}>
+            {message.text}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" style={{ overflow: 'visible' }}>
+          {/* Banner Image */}
+          <div style={{ overflow: 'visible' }}>
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Banner Image</h4>
+            <div className="space-y-4">
+              {bannerUrl ? (
+                <div className="relative">
+                  <img
+                    src={bannerUrl}
+                    alt="Restaurant banner"
+                    className="w-full h-48 object-cover rounded-lg border border-gray-300"
+                  />
+                  <button
+                    onClick={() => handleImageDelete('banner')}
+                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center" style={{ overflow: 'visible' }}>
+                  <p className="text-gray-500 mb-4">No banner image uploaded</p>
+                  <CldUploadWidget
+                    uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                    signatureEndpoint="/api/sign-cloudinary-params"
+                    onSuccess={handleBannerUpload}
+                    onOpen={saveScrollPosition}
+                    onClose={() => {
+                      // Additional cleanup when widget closes
+                      setTimeout(() => {
+                        document.body.style.overflow = 'unset';
+                        restoreScrollPosition();
+                      }, 300);
+                    }}
+                    options={{
+                      multiple: false,
+                      resourceType: 'image',
+                      cropping: true,
+                      croppingAspectRatio: 3,
+                      croppingDefaultSelectionRatio: 0.3,
+                      showSkipCropButton: false,
+                    }}
+                  >
+                    {({ open }) => (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveScrollPosition();
+                          open();
+                        }}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Upload Banner
+                      </button>
+                    )}
+                  </CldUploadWidget>
+                </div>
+              )}
+              <p className="text-sm text-gray-500">
+                Recommended size: 1200×400 pixels. This will be displayed at the top of your restaurant page.
+              </p>
+            </div>
+          </div>
+
+          {/* Avatar Image */}
+          <div style={{ overflow: 'visible' }}>
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Profile Image</h4>
+            <div className="space-y-4">
+              {avatarUrl ? (
+                <div className="relative inline-block">
+                  <img
+                    src={avatarUrl}
+                    alt="Restaurant profile"
+                    className="w-32 h-32 object-cover rounded-full border-4 border-white shadow-lg"
+                  />
+                  <button
+                    onClick={() => handleImageDelete('avatar')}
+                    className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-full w-32 h-32 flex items-center justify-center mx-auto">
+                  <CldUploadWidget
+                    uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                    signatureEndpoint="/api/sign-cloudinary-params"
+                    onSuccess={handleAvatarUpload}
+                    onOpen={saveScrollPosition}
+                    onClose={() => {
+                      // Additional cleanup when widget closes
+                      setTimeout(() => {
+                        document.body.style.overflow = 'unset';
+                        restoreScrollPosition();
+                      }, 300);
+                    }}
+                    options={{
+                      multiple: false,
+                      resourceType: 'image',
+                      cropping: true,
+                      croppingAspectRatio: 1,
+                      croppingDefaultSelectionRatio: 0.8,
+                      showSkipCropButton: false,
+                    }}
+                  >
+                    {({ open }) => (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveScrollPosition();
+                          open();
+                        }}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                      </button>
+                    )}
+                  </CldUploadWidget>
+                </div>
+              )}
+              <p className="text-sm text-gray-500 text-center">
+                Recommended size: 400×400 pixels. This will be your restaurant's profile picture.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Restaurant Information Form */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-2xl font-bold text-gray-800 mb-6">Restaurant Information</h3>
+
+        {message.text && (
+          <div className={`mb-6 p-4 rounded-lg ${message.type === 'success'
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-800 border border-red-200'
+            }`}>
             {message.text}
           </div>
         )}
@@ -339,7 +611,7 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
             >
               {loading ? 'Updating...' : 'Update Restaurant Info'}
             </button>
-            
+
             <button
               type="button"
               onClick={() => setFormData({
@@ -483,31 +755,28 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
           <div className="flex space-x-4 mb-6 border-b border-gray-200">
             <button
               onClick={() => setActivePromoTab('all')}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                activePromoTab === 'all'
+              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${activePromoTab === 'all'
                   ? 'border-amber-500 text-amber-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               All Promo Codes
             </button>
             <button
               onClick={() => setActivePromoTab('active')}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                activePromoTab === 'active'
+              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${activePromoTab === 'active'
                   ? 'border-amber-500 text-amber-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               Active
             </button>
             <button
               onClick={() => setActivePromoTab('inactive')}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                activePromoTab === 'inactive'
+              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${activePromoTab === 'inactive'
                   ? 'border-amber-500 text-amber-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               Inactive
             </button>
@@ -521,17 +790,16 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                 <div key={promo._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
                   <div className="flex-1">
                     <div className="flex items-center space-x-4">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        promo.isActive 
-                          ? 'bg-green-100 text-green-800' 
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${promo.isActive
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
-                      }`}>
+                        }`}>
                         {promo.isActive ? 'Active' : 'Inactive'}
                       </span>
                       <span className="font-mono font-semibold text-lg">{promo.code}</span>
                       <span className="text-amber-600 font-semibold">
-                        {promo.discountType === 'percentage' 
-                          ? `${promo.discountValue}% OFF` 
+                        {promo.discountType === 'percentage'
+                          ? `${promo.discountValue}% OFF`
                           : `$${promo.discountValue} OFF`}
                       </span>
                       {promo.usageLimit && (
@@ -555,11 +823,10 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                     </button>
                     <button
                       onClick={() => handleTogglePromoStatus(promo._id, promo.isActive)}
-                      className={`px-3 py-1 text-sm rounded transition-colors ${
-                        promo.isActive
+                      className={`px-3 py-1 text-sm rounded transition-colors ${promo.isActive
                           ? 'bg-yellow-500 text-white hover:bg-yellow-600'
                           : 'bg-green-500 text-white hover:bg-green-600'
-                      }`}
+                        }`}
                     >
                       {promo.isActive ? 'Deactivate' : 'Activate'}
                     </button>
