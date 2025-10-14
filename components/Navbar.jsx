@@ -14,7 +14,6 @@ import Link from 'next/link';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import useSWR from 'swr';
 
-
 const fetcher = (url) => fetch(url).then(res => res.json());
 
 export default function Navbar() {
@@ -28,18 +27,38 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
-// components/Navbar.jsx - Add this line with your other useRef declarations
-const notificationRef = useRef(null); // Add this line
-    // Fetch notifications using SWR
+  const notificationRef = useRef(null);
+  const cartRef = useRef(null);
+
+  // Fetch notifications using SWR
   const { data: notificationData, mutate: mutateNotifications } = useSWR(
     session ? '/api/notifications' : null,
     fetcher,
-    { refreshInterval: 30000 } // Refresh every 30 seconds
+    { refreshInterval: 30000 }
   );
+
+  // Fetch cart data for users only
+const { data: cartData, mutate: mutateCart } = useSWR(
+  session && session.user?.role === 'user' ? '/api/cart' : null,
+  fetcher,
+  { 
+    refreshInterval: 5000,
+    // Add error handling and revalidation on focus
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true
+  }
+);
+
 
   const notifications = notificationData?.notifications || [];
   const unreadCount = notificationData?.unreadCount || 0;
+const cartItems = cartData?.items || [];
+const cartTotal = cartData?.total || 0;
+const cartItemCount = cartData?.itemCount || cartItems.reduce((total, item) => total + item.quantity, 0);
+
+  
   const isDashboard = pathname?.startsWith('/dashboard');
+  const isUser = session?.user?.role === 'user';
 
   useEffect(() => {
     // Only add scroll effect if not on dashboard
@@ -74,14 +93,14 @@ const notificationRef = useRef(null); // Add this line
     };
   }, []);
 
-    const markAsRead = async (notificationId) => {
+  const markAsRead = async (notificationId) => {
     try {
       await fetch('/api/notifications', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationId })
       });
-      mutateNotifications(); // Revalidate SWR cache
+      mutateNotifications();
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -97,6 +116,43 @@ const notificationRef = useRef(null); // Add this line
       mutateNotifications();
     } catch (error) {
       console.error('Error marking all as read:', error);
+    }
+  };
+
+  const updateCartItem = async (itemId, quantity) => {
+    try {
+      await fetch('/api/cart', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, quantity })
+      });
+      mutateCart();
+    } catch (error) {
+      console.error('Error updating cart:', error);
+    }
+  };
+
+  const removeFromCart = async (itemId) => {
+    try {
+      await fetch('/api/cart', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId })
+      });
+      mutateCart();
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+    }
+  };
+
+  const clearCart = async () => {
+    try {
+      await fetch('/api/cart', {
+        method: 'DELETE'
+      });
+      mutateCart();
+    } catch (error) {
+      console.error('Error clearing cart:', error);
     }
   };
 
@@ -124,7 +180,6 @@ const notificationRef = useRef(null); // Add this line
     if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
     return `${Math.floor(diffInHours / 24)}d ago`;
   };
-
 
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
@@ -207,7 +262,129 @@ const notificationRef = useRef(null); // Add this line
 
           {/* Right side items */}
           <div className="flex items-center space-x-4">
-                      {/* Notifications Dropdown */}
+            {/* Cart Dropdown - Only for users */}
+            {isUser && (
+              <div className="relative" ref={cartRef}>
+                <Menu>
+                  <MenuButton className="relative p-2 rounded-lg hover:bg-black/10 transition-colors">
+                    <FaCartShopping className="w-5 h-5" />
+                    {cartItemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {cartItemCount > 9 ? '9+' : cartItemCount}
+                      </span>
+                    )}
+                  </MenuButton>
+                  
+                  <MenuItems 
+                    anchor="bottom" 
+                    className="w-96 bg-white rounded-lg shadow-xl border py-2 z-50 max-h-96 overflow-y-auto"
+                  >
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-semibold text-gray-900">Your Cart</h3>
+                        {cartItemCount > 0 && (
+                          <button 
+                            onClick={clearCart}
+                            className="text-sm text-red-600 hover:text-red-800 font-medium"
+                          >
+                            Clear All
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {cartItemCount === 0 ? (
+                      <div className="px-4 py-8 text-center text-gray-500">
+                        <FaCartShopping className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</p>
+                        <p className="text-sm text-gray-600">Add some delicious items to get started!</p>
+                        <Link 
+                          href="/order-now"
+                          className="inline-block mt-4 px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                        >
+                          Browse Restaurants
+                        </Link>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Cart Items */}
+                        <div className="max-h-64 overflow-y-auto">
+                          {cartItems.map((item) => (
+                            <MenuItem key={item._id}>
+                              <div className="flex items-center space-x-3 p-4 hover:bg-gray-50 transition-colors">
+                                {item.dishImage && (
+                                  <img
+                                    src={item.dishImage}
+                                    alt={item.dishName}
+                                    className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-medium text-gray-900 truncate">
+                                    {item.dishName}
+                                  </h4>
+                                  <p className="text-sm text-gray-600">${item.price?.toFixed(2)}</p>
+                                  <p className="text-xs text-gray-500">{item.restaurantName}</p>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => updateCartItem(item._id, Math.max(0, item.quantity - 1))}
+                                    className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors"
+                                  >
+                                    <span className="text-xs">-</span>
+                                  </button>
+                                  <span className="text-sm font-medium w-8 text-center">
+                                    {item.quantity}
+                                  </span>
+                                  <button
+                                    onClick={() => updateCartItem(item._id, item.quantity + 1)}
+                                    className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors"
+                                  >
+                                    <span className="text-xs">+</span>
+                                  </button>
+                                  <button
+                                    onClick={() => removeFromCart(item._id)}
+                                    className="ml-2 text-red-500 hover:text-red-700 transition-colors"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            </MenuItem>
+                          ))}
+                        </div>
+
+                        {/* Cart Summary */}
+                        <div className="border-t border-gray-200 p-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <span className="text-lg font-bold text-gray-900">Total:</span>
+                            <span className="text-lg font-bold text-amber-600">${cartTotal?.toFixed(2)}</span>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Link
+                              href="/dashboard/cart"
+                              className="flex-1 bg-amber-500 text-white py-2 px-4 rounded-lg text-center font-medium hover:bg-amber-600 transition-colors"
+                            >
+                              View Cart
+                            </Link>
+                            <Link
+                              href="/dashboard/checkout"
+                              className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg text-center font-medium hover:bg-green-600 transition-colors"
+                            >
+                              Checkout
+                            </Link>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </MenuItems>
+                </Menu>
+              </div>
+            )}
+
+            {/* Notifications Dropdown */}
             {session && (
               <div className="relative" ref={notificationRef}>
                 <Menu>
@@ -289,7 +466,7 @@ const notificationRef = useRef(null); // Add this line
                 onClick={() => setIsLanguageOpen(!isLanguageOpen)}
                 className="hidden sm:flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-black/10 transition-colors"
               >
-                <FaLanguage className="w-4 h-4" /> {/* Added language icon */}
+                <FaLanguage className="w-4 h-4" />
                 <span className="text-sm">
                   {languages.find(lang => lang.code === currentLanguage)?.native}
                 </span>
@@ -358,15 +535,17 @@ const notificationRef = useRef(null); // Add this line
                       Dashboard
                     </Link>
 
-                    {/* Cart Link - Added below Dashboard */}
-                    <Link
-                      href="/dashboard/cart"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      onClick={() => setIsProfileOpen(false)}
-                    >
-                      <FaCartShopping className="w-4 h-4 mr-3" />
-                      Cart
-                    </Link>
+                    {/* Cart Link - Only for users */}
+                    {isUser && (
+                      <Link
+                        href="/dashboard/cart"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setIsProfileOpen(false)}
+                      >
+                        <FaCartShopping className="w-4 h-4 mr-3" />
+                        Cart ({cartItemCount})
+                      </Link>
+                    )}
                     
                     {/* Sign Out Button */}
                     <button
@@ -407,14 +586,14 @@ const notificationRef = useRef(null); // Add this line
         {/* Mobile Navigation Menu with White Background and Black Text */}
         <div className={`md:hidden transition-all duration-300 ease-in-out rounded-b-2xl ${
           isMobileMenuOpen ? " opacity-100" : "max-h-0 opacity-0"
-        } overflow-hidden bg-white shadow-lg`}> {/* Added bg-white and shadow */}
+        } overflow-hidden bg-white shadow-lg`}>
           <div className="py-4 space-y-4">
             {/* Mobile Navigation Links with Black Text */}
             {navItems.map((item) => (
               <Link
                 key={item.id}
                 href={item.href}
-                className="block w-full text-left capitalize font-medium text-gray-900 hover:text-red-600 hover:bg-amber-200 transition-colors py-2 px-4" // Added text-gray-900 and px-4
+                className="block w-full text-left capitalize font-medium text-gray-900 hover:text-red-600 hover:bg-amber-200 transition-colors py-2 px-4"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 {item.label}
@@ -422,7 +601,7 @@ const notificationRef = useRef(null); // Add this line
             ))}
             
             {/* Mobile Language Selector */}
-            <div className="pt-4 border-t border-gray-200 px-4"> {/* Added px-4 */}
+            <div className="pt-4 border-t border-gray-200 px-4">
               <div className="flex flex-wrap gap-2">
                 {languages.map((lang) => (
                   <button
@@ -442,7 +621,7 @@ const notificationRef = useRef(null); // Add this line
 
             {/* Mobile Login Button - Only show if not logged in */}
             {!session && (
-              <div className="px-4"> {/* Added px-4 container */}
+              <div className="px-4">
                 <button 
                   onClick={() => {
                     router.push('/auth/signin');

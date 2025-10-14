@@ -14,7 +14,7 @@ import { FaLanguage } from 'react-icons/fa6';
 import { IoStatsChartSharp } from "react-icons/io5";
 import { MdReport } from 'react-icons/md';
 import { IoNotifications } from 'react-icons/io5';
-import { MdOutlineAddBusiness } from "react-icons/md"; // Add this import
+import { MdOutlineAddBusiness } from "react-icons/md"; 
 import { IoDocuments } from "react-icons/io5";
 
 const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {

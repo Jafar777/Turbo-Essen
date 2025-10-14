@@ -1,9 +1,14 @@
 // components/RestaurantMenu.jsx
 'use client';
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 export default function RestaurantMenu({ restaurant, dishes }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const { data: session } = useSession();
+  const router = useRouter();
+  const isUser = session?.user?.role === 'user';
 
   // Group dishes by category
   const dishesByCategory = dishes.reduce((acc, dish) => {
@@ -16,6 +21,72 @@ export default function RestaurantMenu({ restaurant, dishes }) {
   }, {});
 
   const categories = Object.keys(dishesByCategory);
+
+// In your components/RestaurantMenu.jsx, update the addToCart function:
+
+const addToCart = async (dish) => {
+  if (!session) {
+    router.push('/auth/signin');
+    return;
+  }
+
+  if (!isUser) {
+    alert('Only customers can add items to cart');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/cart', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        dishId: dish._id,
+        dishName: dish.name,
+        dishImage: dish.image,
+        price: dish.price,
+        restaurantId: restaurant._id,
+        restaurantName: restaurant.name,
+        quantity: 1
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Force SWR to revalidate the cart
+      if (window.mutateCart) {
+        window.mutateCart();
+      }
+      
+      // Dispatch event for any components listening
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
+      
+      // Show success feedback
+      const button = document.getElementById(`add-to-cart-${dish._id}`);
+      if (button) {
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '✅ Added!';
+        button.classList.remove('bg-green-500', 'hover:bg-green-600');
+        button.classList.add('bg-green-600', 'cursor-not-allowed');
+        button.disabled = true;
+        
+        setTimeout(() => {
+          button.innerHTML = originalHtml;
+          button.classList.remove('bg-green-600', 'cursor-not-allowed');
+          button.classList.add('bg-green-500', 'hover:bg-green-600');
+          button.disabled = false;
+        }, 2000);
+      }
+    } else {
+      alert(data.error || 'Failed to add item to cart');
+    }
+  } catch (error) {
+    console.error('Error adding to cart:', error);
+    alert('Error adding item to cart');
+  }
+};
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -81,7 +152,7 @@ export default function RestaurantMenu({ restaurant, dishes }) {
                 </h3>
                 <div className="grid gap-6">
                   {dishesByCategory[category].map((dish) => (
-                    <div key={dish._id} className="flex items-start space-x-4 p-4 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div key={dish._id} className="flex items-start space-x-4 p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100">
                       {dish.image && (
                         <img
                           src={dish.image}
@@ -91,7 +162,7 @@ export default function RestaurantMenu({ restaurant, dishes }) {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
-                          <div>
+                          <div className="flex-1">
                             <h4 className="text-lg font-semibold text-gray-900">
                               {dish.name}
                             </h4>
@@ -106,9 +177,21 @@ export default function RestaurantMenu({ restaurant, dishes }) {
                               </p>
                             )}
                           </div>
-                          <p className="text-lg font-bold text-amber-600 ml-4">
-                            ${dish.price?.toFixed(2)}
-                          </p>
+                          <div className="flex items-center space-x-4 ml-4">
+                            <p className="text-lg font-bold text-amber-600 whitespace-nowrap">
+                              ${dish.price?.toFixed(2)}
+                            </p>
+                            {isUser && (
+                              <button
+                                id={`add-to-cart-${dish._id}`}
+                                onClick={() => addToCart(dish)}
+                                className="flex items-center space-x-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200"
+                              >
+                                <span>+</span>
+                                <span>Add to Cart</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                         
                         {/* Dietary Info */}
@@ -142,7 +225,7 @@ export default function RestaurantMenu({ restaurant, dishes }) {
             {selectedCategory !== 'all' && dishesByCategory[selectedCategory] && (
               <div className="grid gap-6">
                 {dishesByCategory[selectedCategory].map((dish) => (
-                  <div key={dish._id} className="flex items-start space-x-4 p-4 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div key={dish._id} className="flex items-start space-x-4 p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100">
                     {dish.image && (
                       <img
                         src={dish.image}
@@ -152,7 +235,7 @@ export default function RestaurantMenu({ restaurant, dishes }) {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
-                        <div>
+                        <div className="flex-1">
                           <h4 className="text-lg font-semibold text-gray-900">
                             {dish.name}
                           </h4>
@@ -162,9 +245,21 @@ export default function RestaurantMenu({ restaurant, dishes }) {
                             </p>
                           )}
                         </div>
-                        <p className="text-lg font-bold text-amber-600 ml-4">
-                          ${dish.price?.toFixed(2)}
-                        </p>
+                        <div className="flex items-center space-x-4 ml-4">
+                          <p className="text-lg font-bold text-amber-600 whitespace-nowrap">
+                            ${dish.price?.toFixed(2)}
+                          </p>
+                          {isUser && (
+                            <button
+                              id={`add-to-cart-${dish._id}`}
+                              onClick={() => addToCart(dish)}
+                              className="flex items-center space-x-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors duration-200"
+                            >
+                              <span>+</span>
+                              <span>Add to Cart</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
