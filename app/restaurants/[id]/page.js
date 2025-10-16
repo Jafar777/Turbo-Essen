@@ -1,6 +1,7 @@
 // /Users/jafar/Desktop/turboessen/app/restaurants/[id]/page.js
 import { notFound } from 'next/navigation';
 import RestaurantMenu from '@/components/RestaurantMenu';
+import Navbar from '@/components/Navbar';
 
 async function getRestaurant(id) {
   try {
@@ -47,7 +48,10 @@ export default async function RestaurantPage({ params }) {
   }
 
   return (
+    <div>
+            <Navbar />
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-amber-50">
+
       {/* Enhanced Restaurant Header */}
       <div className="relative bg-white shadow-xl">
         {/* Banner Section */}
@@ -149,6 +153,7 @@ export default async function RestaurantPage({ params }) {
           dishes={dishes} 
         />
       </div>
+    </div>
     </div>
   );
 }

@@ -27,13 +27,14 @@ export async function POST(request) {
     } = await request.json();
     
     await dbConnect();
+    const cleanedSubCategoryId = subCategoryId === "" ? undefined : subCategoryId;
 
     const newDish = new MenuItem({
       name,
       description,
       price,
       categoryId,
-      subCategoryId,
+      subCategoryId: cleanedSubCategoryId, // Use the cleaned value
       restaurantId,
       image,
       ingredients: ingredients || [],

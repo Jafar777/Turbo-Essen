@@ -18,6 +18,10 @@ export async function PUT(request, { params }) {
     console.log('Updating dish ID:', id); // Your logging
     const updateData = await request.json();
     console.log('Update data received:', updateData); // Your logging
+
+        if (updateData.subCategoryId === "") {
+      updateData.subCategoryId = undefined;
+    }
     
     await dbConnect();
 

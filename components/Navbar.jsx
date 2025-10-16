@@ -238,12 +238,14 @@ const cartItemCount = cartData?.itemCount || cartItems.reduce((total, item) => t
             className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
           >
             <div className="w-24 h-24 relative">
+              <Link href="/">
               <Image
                 src="/logo.png"
                 alt="TurboEssen Logo"
                 fill
                 className="object-contain"
               />
+              </Link>
             </div>
           </button>
 
@@ -369,12 +371,7 @@ const cartItemCount = cartData?.itemCount || cartItems.reduce((total, item) => t
                             >
                               View Cart
                             </Link>
-                            <Link
-                              href="/dashboard/checkout"
-                              className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg text-center font-medium hover:bg-green-600 transition-colors"
-                            >
-                              Checkout
-                            </Link>
+
                           </div>
                         </div>
                       </>
