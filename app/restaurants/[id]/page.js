@@ -2,6 +2,7 @@
 import { notFound } from 'next/navigation';
 import RestaurantMenu from '@/components/RestaurantMenu';
 import Navbar from '@/components/Navbar';
+import RestaurantReviews from '@/components/RestaurantReviews'; // We'll create this component
 
 async function getRestaurant(id) {
   try {
@@ -37,11 +38,31 @@ async function getRestaurantDishes(restaurantId) {
     return [];
   }
 }
+async function getRestaurantReviews(restaurantId) {
+  try {
+    const response = await fetch(
+      `${process.env.NEXTAUTH_URL}/api/public/restaurants/${restaurantId}/reviews`,
+      { next: { revalidate: 60 } }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.reviews || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    return [];
+  }
+}
+
 
 export default async function RestaurantPage({ params }) {
   const { id } = await params;
   const restaurant = await getRestaurant(id);
   const dishes = await getRestaurantDishes(id);
+    const reviews = await getRestaurantReviews(id);
+
 
   if (!restaurant) {
     notFound();
@@ -153,6 +174,12 @@ export default async function RestaurantPage({ params }) {
           dishes={dishes} 
         />
       </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+          <RestaurantReviews 
+            restaurant={restaurant}
+            reviews={reviews}
+          />
+        </div>
     </div>
     </div>
   );

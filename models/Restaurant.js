@@ -29,6 +29,7 @@ const RestaurantSchema = new mongoose.Schema({
     type: String, // Cloudinary URL for banner image
     default: ''
   },
+  
   promoCodes: [{
     code: {
       type: String,
@@ -60,7 +61,26 @@ const RestaurantSchema = new mongoose.Schema({
       type: Number,
       default: 0
     }
-  }]
+  }],
+    averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  totalReviews: {
+    type: Number,
+    default: 0
+  },
+  ratingCount: {
+    1: { type: Number, default: 0 },
+    2: { type: Number, default: 0 },
+    3: { type: Number, default: 0 },
+    4: { type: Number, default: 0 },
+    5: { type: Number, default: 0 }
+  }
+
+  
 }, {
   timestamps: true
 });

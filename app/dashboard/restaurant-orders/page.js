@@ -1,10 +1,10 @@
-// app/dashboard/orders/page.js
+// app/dashboard/restaurant-orders/page.js
 'use client';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
-export default function OrdersPage() {
+export default function RestaurantOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
@@ -14,31 +14,36 @@ export default function OrdersPage() {
   useEffect(() => {
     if (status === 'loading') return;
 
-    if (!session) {
-      router.push('/auth/signin');
+    if (!session || session.user?.role !== 'restaurant_owner') {
+      router.push('/dashboard');
       return;
     }
 
     fetchOrders();
   }, [session, status, router]);
 
-  const fetchOrders = async () => {
-    try {
-      const response = await fetch('/api/orders');
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders || []);
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
-      setLoading(false);
+// Add this console log in the fetchOrders function
+const fetchOrders = async () => {
+  try {
+    console.log('Fetching orders for restaurant owner...');
+    const response = await fetch('/api/orders');
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Orders API response:', data);
+      setOrders(data.orders || []);
+    } else {
+      console.error('Failed to fetch orders, status:', response.status);
+      const errorData = await response.json();
+      console.error('Error details:', errorData);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const updateOrderStatus = async (orderId, newStatus) => {
-    if (session.user.role !== 'restaurant_owner') return;
-    
     setUpdating(orderId);
     try {
       const response = await fetch(`/api/orders/${orderId}`, {
@@ -50,7 +55,7 @@ export default function OrdersPage() {
       });
 
       if (response.ok) {
-        fetchOrders();
+        fetchOrders(); // Refresh orders
       } else {
         alert('Failed to update order status');
       }
@@ -118,21 +123,18 @@ export default function OrdersPage() {
     );
   }
 
-  const isRestaurantOwner = session.user?.role === 'restaurant_owner';
-  const isUser = session.user?.role === 'user';
+  if (!session || session.user?.role !== 'restaurant_owner') {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            {isRestaurantOwner ? 'Restaurant Orders' : 'My Orders'}
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900">Restaurant Orders</h1>
           <p className="text-gray-600 mt-2">
-            {isRestaurantOwner 
-              ? 'Manage and track customer orders' 
-              : 'Track your orders and their status'}
+            Manage and track customer orders
           </p>
         </div>
 
@@ -144,46 +146,38 @@ export default function OrdersPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {isRestaurantOwner ? 'No orders yet' : 'No orders yet'}
-              </h2>
-              <p className="text-gray-600 mb-8">
-                {isRestaurantOwner
-                  ? 'Customer orders will appear here when they place orders from your restaurant.'
-                  : 'You haven\'t placed any orders yet. Start exploring restaurants and place your first order!'}
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">No orders yet</h2>
+              <p className="text-gray-600">
+                Customer orders will appear here when they place orders from your restaurant.
               </p>
             </div>
           </div>
         ) : (
           <div className="space-y-6">
             {orders.map((order) => {
-              const nextStatuses = isRestaurantOwner ? getNextStatus(order.status) : [];
+              const nextStatuses = getNextStatus(order.status);
               
               return (
                 <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {isRestaurantOwner 
-                          ? `Order from ${order.userName}` 
-                          : `Order from ${order.restaurantName}`}
+                        Order from {order.userName}
                       </h3>
                       <p className="text-gray-600 text-sm mt-1">
                         Order # {order._id.slice(-8).toUpperCase()} • {new Date(order.createdAt).toLocaleDateString()}
                       </p>
-                      {isRestaurantOwner && (
-                        <p className="text-gray-600 text-sm">
-                          Customer: {order.userEmail}
-                        </p>
-                      )}
+                      <p className="text-gray-600 text-sm">
+                        Customer: {order.userEmail}
+                      </p>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-4 lg:mt-0">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
                         {getStatusText(order.status)}
                       </span>
                       
-                      {/* Status Update Buttons for Restaurant Owners */}
-                      {isRestaurantOwner && nextStatuses.length > 0 && (
+                      {/* Status Update Buttons */}
+                      {nextStatuses.length > 0 && (
                         <div className="flex gap-2">
                           {nextStatuses.map((status) => (
                             <button

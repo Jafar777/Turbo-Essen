@@ -26,17 +26,18 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
     { href: '/dashboard/users', label: 'Users', icon: HiMiniUsers, roles: ['admin'] },
     { href: '/dashboard/account', label: 'User Settings', icon: MdManageAccounts, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
        // Add the new menu item here - visible to 'user' role only
-    { href: '/dashboard/apply-restaurant', label: 'Apply as a Restaurant', icon: MdOutlineAddBusiness, roles: ['user'] },
       { href: '/dashboard/applications', label: 'Restaurant Applications', icon: IoDocuments, roles: ['admin'] },
     { href: '/dashboard/restaurant', label: 'Restaurant Management', icon: IoRestaurantSharp, roles: ['restaurant_owner'] },
     { href: '/dashboard/restaurants-management', label: 'Restaurants Management', icon: IoRestaurantSharp, roles: ['admin'] },
     { href: '/dashboard/cart', label: 'Cart', icon: FaCartShopping, roles: [ 'user'] },
-    { href: '/dashboard/orders', label: 'Orders', icon: LuPackageSearch, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery'] },
+    { href: '/dashboard/orders', label: 'Orders', icon: LuPackageSearch, roles: ['admin', 'user', 'restaurant_owner', 'chef', 'waiter', 'delivery'] },
     { href: '/dashboard/reviews', label: 'Reviews', icon: MdOutlineRateReview, roles: ['admin', 'restaurant_owner', 'user'] },
     { href: '/dashboard/languages', label: 'Languages', icon: FaLanguage, roles: ['admin'] },
     { href: '/dashboard/performance', label: 'Performance', icon: IoStatsChartSharp, roles: ['admin', 'restaurant_owner'] },
     { href: '/dashboard/reports', label: 'Reports', icon: MdReport, roles: ['admin'] },
     { href: '/dashboard/notifications', label: 'Notifications', icon: IoNotifications, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
+    { href: '/dashboard/apply-restaurant', label: 'Apply as a Restaurant', icon: MdOutlineAddBusiness, roles: ['user'] },
+
   ];
 
   const menuItems = allMenuItems.filter(item => 

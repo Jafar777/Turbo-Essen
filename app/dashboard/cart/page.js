@@ -9,6 +9,8 @@ export default function CartPage() {
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState('cash');
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -28,36 +30,35 @@ export default function CartPage() {
     fetchCart();
   }, [session, status, router]);
 
-const fetchCart = async () => {
-  try {
-    const response = await fetch('/api/cart');
-    if (response.ok) {
-      const data = await response.json();
-      // Set cart directly with the API response structure
-      setCart({
-        items: data.items || [],
-        total: data.total || 0,
-        itemCount: data.itemCount || 0
-      });
-    } else {
-      console.error('Failed to fetch cart');
+  const fetchCart = async () => {
+    try {
+      const response = await fetch('/api/cart');
+      if (response.ok) {
+        const data = await response.json();
+        setCart({
+          items: data.items || [],
+          total: data.total || 0,
+          itemCount: data.itemCount || 0
+        });
+      } else {
+        console.error('Failed to fetch cart');
+        setCart({
+          items: [],
+          total: 0,
+          itemCount: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching cart:', error);
       setCart({
         items: [],
         total: 0,
         itemCount: 0
       });
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching cart:', error);
-    setCart({
-      items: [],
-      total: 0,
-      itemCount: 0
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const updateQuantity = async (itemId, newQuantity) => {
     if (newQuantity < 1) return;
@@ -76,7 +77,7 @@ const fetchCart = async () => {
       });
 
       if (response.ok) {
-        fetchCart(); // Refresh cart data
+        fetchCart();
         window.dispatchEvent(new CustomEvent('cartUpdated'));
       }
     } catch (error) {
@@ -98,7 +99,7 @@ const fetchCart = async () => {
       });
 
       if (response.ok) {
-        fetchCart(); // Refresh cart data
+        fetchCart();
         window.dispatchEvent(new CustomEvent('cartUpdated'));
       }
     } catch (error) {
@@ -125,6 +126,48 @@ const fetchCart = async () => {
       console.error('Error clearing cart:', error);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const placeOrder = async () => {
+    if (!cart || cart.items.length === 0) return;
+    
+    setIsPlacingOrder(true);
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentMethod: selectedPayment,
+          items: cart.items,
+          total: cart.total
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Clear the cart after successful order
+        await fetch('/api/cart', { method: 'DELETE' });
+        setCart({ items: [], total: 0 });
+        window.dispatchEvent(new CustomEvent('cartUpdated'));
+        
+        // Show success message
+        alert('Order placed successfully! You can track your order in the Orders section.');
+        
+        // Optionally redirect to orders page
+        // router.push('/dashboard/orders');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to place order');
+      }
+    } catch (error) {
+      console.error('Error placing order:', error);
+      alert('Error placing order. Please try again.');
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
@@ -156,9 +199,9 @@ const fetchCart = async () => {
     return null;
   }
 
-const cartItems = cart?.items || [];
-const cartTotal = cart?.total || 0;
-const itemCount = cart?.itemCount || cartItems.reduce((total, item) => total + item.quantity, 0);
+  const cartItems = cart?.items || [];
+  const cartTotal = cart?.total || 0;
+  const itemCount = cart?.itemCount || cartItems.reduce((total, item) => total + item.quantity, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -182,7 +225,7 @@ const itemCount = cart?.itemCount || cartItems.reduce((total, item) => total + i
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
               <p className="text-gray-600 mb-8">
-                Looks like you havent added any delicious items to your cart yet.
+                Looks like you haven't added any delicious items to your cart yet.
               </p>
               <Link
                 href="/order-now"
@@ -287,29 +330,71 @@ const itemCount = cart?.itemCount || cartItems.reduce((total, item) => total + i
                     <span className="text-gray-600">Subtotal ({itemCount} items)</span>
                     <span className="font-medium">${cartTotal?.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Delivery Fee</span>
-                    <span className="font-medium">$2.99</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Tax</span>
-                    <span className="font-medium">${(cartTotal * 0.08).toFixed(2)}</span>
-                  </div>
                   <div className="border-t border-gray-200 pt-3">
                     <div className="flex justify-between text-lg font-semibold">
                       <span>Total</span>
                       <span className="text-amber-600">
-                        ${(cartTotal + 2.99 + (cartTotal * 0.08)).toFixed(2)}
+                        ${cartTotal?.toFixed(2)}
                       </span>
                     </div>
                   </div>
                 </div>
 
+                {/* Payment Method Selection */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    Payment Method
+                  </h3>
+                  <div className="space-y-2">
+                    {/* Cash on Delivery */}
+                    <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          name="payment"
+                          value="cash"
+                          checked={selectedPayment === 'cash'}
+                          onChange={(e) => setSelectedPayment(e.target.value)}
+                          className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-gray-700 font-medium">Cash on Delivery</span>
+                        <p className="text-sm text-gray-500">Pay when you receive your order</p>
+                      </div>
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-600 text-sm">✓</span>
+                      </div>
+                    </label>
+
+                    {/* Stripe (Disabled) */}
+                    <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-not-allowed opacity-50">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          name="payment"
+                          value="stripe"
+                          disabled
+                          className="h-4 w-4 text-gray-300 border-gray-300"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-gray-500 font-medium">Credit/Debit Card</span>
+                        <p className="text-sm text-gray-400">Pay securely with Stripe</p>
+                      </div>
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span className="text-gray-400 text-sm">🔒</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
                 <button
-                  onClick={() => router.push('/dashboard/checkout')}
-                  className="w-full bg-amber-500 text-white py-3 px-4 rounded-lg font-semibold hover:bg-amber-600 transition-colors duration-200 mb-4"
+                  onClick={placeOrder}
+                  disabled={isPlacingOrder || updating}
+                  className="w-full bg-amber-500 text-white py-3 px-4 rounded-lg font-semibold hover:bg-amber-600 transition-colors duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Proceed to Checkout
+                  {isPlacingOrder ? 'Placing Order...' : 'Proceed to Checkout'}
                 </button>
 
                 <Link
