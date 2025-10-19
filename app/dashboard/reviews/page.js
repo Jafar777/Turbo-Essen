@@ -365,7 +365,7 @@ export default function ReviewsPage() {
                       No orders to review yet
                     </h3>
                     <p className="text-gray-600">
-                      You'll be able to review orders once they're delivered.
+                      Youll be able to review orders once theyre delivered.
                     </p>
                   </div>
                 ) : (
@@ -396,7 +396,7 @@ export default function ReviewsPage() {
                       No reviews yet
                     </h3>
                     <p className="text-gray-600">
-                      You haven't written any reviews yet.
+                      You havent written any reviews yet.
                     </p>
                   </div>
                 ) : (
