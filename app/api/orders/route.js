@@ -4,7 +4,8 @@ import { getServerSession } from 'next-auth/next';
 import authOptions from '@/lib/authOptions';
 import dbConnect from '@/lib/dbConnect';
 import Order from '@/models/Order';
-import Restaurant from '@/models/Restaurant'; // Add this import
+import Restaurant from '@/models/Restaurant'; 
+import User from '@/models/User';
 
 // GET: Fetch orders based on user role
 export async function GET(request) {
@@ -32,6 +33,24 @@ export async function GET(request) {
 
       // Get orders for this specific restaurant
       orders = await Order.find({ restaurantId: restaurant._id })
+        .sort({ createdAt: -1 })
+        .populate('userId', 'firstName lastName email');
+    } else if (session.user.role === 'chef') {
+      // Find which restaurant the chef works at
+      const chef = await User.findById(session.user.id).select('restaurantId');
+      
+      if (!chef || !chef.restaurantId) {
+        return NextResponse.json({ 
+          success: true, 
+          orders: [] 
+        });
+      }
+
+      // Chefs only see accepted and preparing orders for their restaurant
+      orders = await Order.find({ 
+        restaurantId: chef.restaurantId,
+        status: { $in: ['accepted', 'preparing'] }
+      })
         .sort({ createdAt: -1 })
         .populate('userId', 'firstName lastName email');
     } else if (session.user.role === 'user') {

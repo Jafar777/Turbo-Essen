@@ -30,6 +30,14 @@ const UserSchema = new mongoose.Schema({
     enum: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'],
     default: 'user'
   },
+  // Add restaurantId for employees (chef, waiter, delivery)
+  restaurantId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Restaurant',
+    required: function() {
+      return ['chef', 'waiter', 'delivery'].includes(this.role);
+    }
+  },
   image: {
     type: String,
     default: null
@@ -40,5 +48,6 @@ const UserSchema = new mongoose.Schema({
 });
 
 // Create unique index for email
+UserSchema.index({ email: 1 }, { unique: true });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

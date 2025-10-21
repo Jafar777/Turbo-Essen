@@ -9,7 +9,16 @@ const NotificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['application_submitted', 'application_accepted', 'application_rejected', 'new_order', 'system'],
+    enum: [
+      'application_submitted', 
+      'application_accepted', 
+      'application_rejected', 
+      'new_order', 
+      'system', 
+      'job_offer', 
+      'job_accepted', 
+      'job_rejected'
+    ],
     required: true
   },
   title: {
@@ -30,7 +39,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   relatedModel: {
     type: String,
-    enum: ['Application', 'Order', 'User']
+    enum: ['Application', 'Order', 'User', 'JobOffer']
   }
 }, {
   timestamps: true

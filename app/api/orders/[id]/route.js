@@ -5,6 +5,7 @@ import authOptions from '@/lib/authOptions';
 import dbConnect from '@/lib/dbConnect';
 import Order from '@/models/Order';
 import Restaurant from '@/models/Restaurant'; // Add this import
+import User from '@/models/User'; // Add this import
 
 // PUT: Update order status
 export async function PUT(request, { params }) {
@@ -44,7 +45,7 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Check permissions
+    // Check permissions based on role
     if (session.user.role === 'restaurant_owner') {
       // Find the restaurant owned by this user
       const restaurant = await Restaurant.findOne({ ownerId: session.user.id });
@@ -55,9 +56,25 @@ export async function PUT(request, { params }) {
           { status: 403 }
         );
       }
-    }
+    } else if (session.user.role === 'chef') {
+      // Chefs can only update orders for their restaurant and only from preparing to on_the_way
+      const chef = await User.findById(session.user.id).select('restaurantId');
+      
+      if (!chef || !chef.restaurantId || order.restaurantId.toString() !== chef.restaurantId.toString()) {
+        return NextResponse.json(
+          { error: 'Access denied - not your restaurant' }, 
+          { status: 403 }
+        );
+      }
 
-    if (session.user.role === 'user' && order.userId.toString() !== session.user.id) {
+      // Chefs can only change status from preparing to on_the_way
+      if (order.status !== 'preparing' || status !== 'on_the_way') {
+        return NextResponse.json(
+          { error: 'Chefs can only mark preparing orders as finished' }, 
+          { status: 403 }
+        );
+      }
+    } else if (session.user.role === 'user' && order.userId.toString() !== session.user.id) {
       return NextResponse.json(
         { error: 'Access denied' }, 
         { status: 403 }

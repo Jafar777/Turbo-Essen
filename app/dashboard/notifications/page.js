@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
+import JobOfferNotification from '@/components/JobOfferNotification';
 
 const fetcher = (url) => fetch(url).then(res => res.json());
 
@@ -13,7 +14,8 @@ export default function NotificationsPage() {
   
   const { data: notificationData, mutate: mutateNotifications } = useSWR(
     session ? '/api/notifications?limit=50' : null,
-    fetcher
+    fetcher,
+    { refreshInterval: 30000 }
   );
 
   const notifications = notificationData?.notifications || [];
@@ -58,6 +60,9 @@ export default function NotificationsPage() {
       case 'application_accepted': return '✅';
       case 'application_rejected': return '❌';
       case 'new_order': return '🛒';
+      case 'job_offer': return '💼';
+      case 'job_accepted': return '👍';
+      case 'job_rejected': return '👎';
       default: return '🔔';
     }
   };
@@ -70,6 +75,10 @@ export default function NotificationsPage() {
     if (diffInHours < 1) return 'Just now';
     if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
     return `${Math.floor(diffInHours / 24)}d ago`;
+  };
+
+  const handleJobOfferUpdate = () => {
+    mutateNotifications(); // Refresh notifications when job offer is handled
   };
 
   if (status === 'loading') {
@@ -119,10 +128,9 @@ export default function NotificationsPage() {
               {notifications.map((notification) => (
                 <div
                   key={notification._id}
-                  className={`border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer ${
+                  className={`border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${
                     !notification.read ? 'bg-blue-50 border-blue-200' : ''
                   }`}
-                  onClick={() => markAsRead(notification._id)}
                 >
                   <div className="flex items-start space-x-4">
                     <span className="text-2xl">{getNotificationIcon(notification.type)}</span>
@@ -132,9 +140,21 @@ export default function NotificationsPage() {
                       <p className="text-sm text-gray-400 mt-2">
                         {getNotificationTime(notification.createdAt)}
                       </p>
+                      
+                      {/* ALWAYS show job offer buttons for job_offer notifications */}
+                      {notification.type === 'job_offer' && (
+                        <JobOfferNotification 
+                          notification={notification} 
+                          onUpdate={handleJobOfferUpdate}
+                        />
+                      )}
                     </div>
-                    {!notification.read && (
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    {!notification.read && notification.type !== 'job_offer' && (
+                      <div 
+                        className="w-2 h-2 bg-blue-500 rounded-full cursor-pointer"
+                        onClick={() => markAsRead(notification._id)}
+                        title="Mark as read"
+                      ></div>
                     )}
                   </div>
                 </div>

@@ -16,6 +16,8 @@ import { MdReport } from 'react-icons/md';
 import { IoNotifications } from 'react-icons/io5';
 import { MdOutlineAddBusiness } from "react-icons/md"; 
 import { IoDocuments } from "react-icons/io5";
+import { FaUsersBetweenLines } from "react-icons/fa6";
+
 
 const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
   const pathname = usePathname();
@@ -36,6 +38,8 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
     { href: '/dashboard/performance', label: 'Performance', icon: IoStatsChartSharp, roles: ['admin', 'restaurant_owner'] },
     { href: '/dashboard/reports', label: 'Reports', icon: MdReport, roles: ['admin'] },
     { href: '/dashboard/notifications', label: 'Notifications', icon: IoNotifications, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
+    { href: '/dashboard/restaurant-workers', label: 'Restaurant Workers', icon: FaUsersBetweenLines, roles: ['restaurant_owner'] },
+    { href: '/dashboard/chef-orders', label: 'Chef Orders', icon: IoRestaurantSharp, roles: ['chef'] },
     { href: '/dashboard/apply-restaurant', label: 'Apply as a Restaurant', icon: MdOutlineAddBusiness, roles: ['user'] },
 
   ];
