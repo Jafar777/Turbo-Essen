@@ -284,7 +284,7 @@ export default function RestaurantWorkersPage() {
               {sentOffers.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <p className="text-xl">No job offers sent yet</p>
-                  <p className="mt-2">Send your first job offer using the "Send Job Offer" tab.</p>
+                  <p className="mt-2">Send your first job offer using the Send Job Offer tab.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
