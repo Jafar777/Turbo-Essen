@@ -847,6 +847,44 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
             </div>
           )}
         </div>
+
+        // Add this section to your RestaurantInfo component:
+<div className="space-y-4">
+  <h3 className="text-lg font-semibold text-gray-900">Table Management</h3>
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Total Tables
+      </label>
+      <input
+        type="number"
+        min="1"
+        value={formData.totalTables || 0}
+        onChange={(e) => setFormData({ ...formData, totalTables: parseInt(e.target.value) })}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+      />
+    </div>
+    
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Available Tables
+      </label>
+      <input
+        type="number"
+        min="0"
+        max={formData.totalTables || 0}
+        value={formData.availableTables || 0}
+        onChange={(e) => setFormData({ ...formData, availableTables: parseInt(e.target.value) })}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+      />
+    </div>
+  </div>
+  
+  <p className="text-sm text-gray-500">
+    Total: {formData.totalTables || 0} tables, Available: {formData.availableTables || 0} tables
+  </p>
+</div>
       </div>
     </div>
   );

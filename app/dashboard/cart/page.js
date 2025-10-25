@@ -10,6 +10,8 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState('cash');
+  const [selectedOrderType, setSelectedOrderType] = useState('delivery');
+  const [tableNumber, setTableNumber] = useState('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -132,18 +134,37 @@ export default function CartPage() {
   const placeOrder = async () => {
     if (!cart || cart.items.length === 0) return;
     
+    // Validate dine-in order
+    if (selectedOrderType === 'dine_in' && !tableNumber) {
+      alert('Please enter a table number for dine-in orders');
+      return;
+    }
+
+    if (selectedOrderType === 'dine_in' && (isNaN(tableNumber) || tableNumber < 1)) {
+      alert('Please enter a valid table number');
+      return;
+    }
+    
     setIsPlacingOrder(true);
     try {
+      const orderData = {
+        paymentMethod: selectedPayment,
+        items: cart.items,
+        total: cart.total,
+        orderType: selectedOrderType
+      };
+
+      // Add table number for dine-in orders
+      if (selectedOrderType === 'dine_in') {
+        orderData.tableNumber = parseInt(tableNumber);
+      }
+
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          paymentMethod: selectedPayment,
-          items: cart.items,
-          total: cart.total
-        }),
+        body: JSON.stringify(orderData),
       });
 
       if (response.ok) {
@@ -225,7 +246,7 @@ export default function CartPage() {
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
               <p className="text-gray-600 mb-8">
-                Looks like you havent added any delicious items to your cart yet.
+                Looks like you haven't added any delicious items to your cart yet.
               </p>
               <Link
                 href="/order-now"
@@ -340,6 +361,89 @@ export default function CartPage() {
                   </div>
                 </div>
 
+                {/* Order Type Selection */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    Order Type
+                  </h3>
+                  <div className="space-y-2">
+                    {/* Delivery */}
+                    <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          name="orderType"
+                          value="delivery"
+                          checked={selectedOrderType === 'delivery'}
+                          onChange={(e) => setSelectedOrderType(e.target.value)}
+                          className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-gray-700 font-medium">🚚 Delivery</span>
+                        <p className="text-sm text-gray-500">Get your food delivered to your location</p>
+                      </div>
+                    </label>
+
+                    {/* Dine In */}
+                    <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          name="orderType"
+                          value="dine_in"
+                          checked={selectedOrderType === 'dine_in'}
+                          onChange={(e) => setSelectedOrderType(e.target.value)}
+                          className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-gray-700 font-medium">🍽️ Dine In</span>
+                        <p className="text-sm text-gray-500">Eat at the restaurant</p>
+                      </div>
+                    </label>
+
+                    {/* Takeaway */}
+                    <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          name="orderType"
+                          value="takeaway"
+                          checked={selectedOrderType === 'takeaway'}
+                          onChange={(e) => setSelectedOrderType(e.target.value)}
+                          className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-gray-700 font-medium">📦 Takeaway</span>
+                        <p className="text-sm text-gray-500">Pick up your order to go</p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Table Number Input for Dine In */}
+                  {selectedOrderType === 'dine_in' && (
+                    <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Table Number *
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={tableNumber}
+                        onChange={(e) => setTableNumber(e.target.value)}
+                        placeholder="Enter your table number"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                      <p className="text-xs text-blue-600 mt-1">
+                        Please enter the table number where you are seated
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 {/* Payment Method Selection */}
                 <div className="mb-6">
                   <h3 className="text-sm font-semibold text-gray-900 mb-3">
@@ -359,8 +463,14 @@ export default function CartPage() {
                         />
                       </div>
                       <div className="flex-1">
-                        <span className="text-gray-700 font-medium">Cash on Delivery</span>
-                        <p className="text-sm text-gray-500">Pay when you receive your order</p>
+                        <span className="text-gray-700 font-medium">Cash on {selectedOrderType === 'delivery' ? 'Delivery' : selectedOrderType === 'dine_in' ? 'Arrival' : 'Pickup'}</span>
+                        <p className="text-sm text-gray-500">
+                          {selectedOrderType === 'delivery' 
+                            ? 'Pay when you receive your order' 
+                            : selectedOrderType === 'dine_in'
+                            ? 'Pay at the restaurant'
+                            : 'Pay when you pick up your order'}
+                        </p>
                       </div>
                       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                         <span className="text-green-600 text-sm">✓</span>
@@ -391,10 +501,16 @@ export default function CartPage() {
 
                 <button
                   onClick={placeOrder}
-                  disabled={isPlacingOrder || updating}
+                  disabled={isPlacingOrder || updating || (selectedOrderType === 'dine_in' && !tableNumber)}
                   className="w-full bg-amber-500 text-white py-3 px-4 rounded-lg font-semibold hover:bg-amber-600 transition-colors duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isPlacingOrder ? 'Placing Order...' : 'Proceed to Checkout'}
+                  {isPlacingOrder 
+                    ? 'Placing Order...' 
+                    : selectedOrderType === 'delivery'
+                    ? 'Place Delivery Order'
+                    : selectedOrderType === 'dine_in'
+                    ? 'Place Dine-in Order'
+                    : 'Place Takeaway Order'}
                 </button>
 
                 <Link

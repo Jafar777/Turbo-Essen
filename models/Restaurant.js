@@ -20,13 +20,24 @@ const RestaurantSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Add table management fields
+  totalTables: {
+    type: Number,
+    default: 10,
+    min: 1
+  },
+  availableTables: {
+    type: Number,
+    default: 10,
+    min: 0
+  },
   // Add avatar and banner fields
   avatar: {
-    type: String, // Cloudinary URL for profile image
+    type: String,
     default: ''
   },
   banner: {
-    type: String, // Cloudinary URL for banner image
+    type: String,
     default: ''
   },
   
@@ -62,7 +73,7 @@ const RestaurantSchema = new mongoose.Schema({
       default: 0
     }
   }],
-    averageRating: {
+  averageRating: {
     type: Number,
     default: 0,
     min: 0,
@@ -79,8 +90,6 @@ const RestaurantSchema = new mongoose.Schema({
     4: { type: Number, default: 0 },
     5: { type: Number, default: 0 }
   }
-
-  
 }, {
   timestamps: true
 });

@@ -65,6 +65,19 @@ const OrderSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  // Add orderType field
+  orderType: {
+    type: String,
+    enum: ['dine_in', 'delivery', 'takeaway'],
+    default: 'delivery'
+  },
+  // Add table number for dine-in orders
+  tableNumber: {
+    type: Number,
+    required: function() {
+      return this.orderType === 'dine_in';
+    }
+  },
   paymentMethod: {
     type: String,
     enum: ['cash', 'stripe'],
@@ -72,7 +85,7 @@ const OrderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'preparing', 'on_the_way', 'delivered', 'rejected'],
+    enum: ['pending', 'accepted', 'preparing', 'on_the_way', 'delivered', 'rejected', 'served'],
     default: 'pending'
   },
   specialInstructions: {
@@ -86,5 +99,6 @@ const OrderSchema = new mongoose.Schema({
 // Index for restaurant orders and user orders
 OrderSchema.index({ restaurantId: 1, createdAt: -1 });
 OrderSchema.index({ userId: 1, createdAt: -1 });
+OrderSchema.index({ orderType: 1, status: 1 }); // Add index for order type and status
 
 export default mongoose.models.Order || mongoose.model('Order', OrderSchema);

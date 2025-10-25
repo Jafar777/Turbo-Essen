@@ -40,6 +40,7 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
     { href: '/dashboard/notifications', label: 'Notifications', icon: IoNotifications, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
     { href: '/dashboard/restaurant-workers', label: 'Restaurant Workers', icon: FaUsersBetweenLines, roles: ['restaurant_owner'] },
     { href: '/dashboard/chef-orders', label: 'Chef Orders', icon: IoRestaurantSharp, roles: ['chef'] },
+      { href: '/dashboard/waiter', label: 'Waiter Dashboard', icon: FaUsersBetweenLines, roles: ['waiter'] },
     { href: '/dashboard/apply-restaurant', label: 'Apply as a Restaurant', icon: MdOutlineAddBusiness, roles: ['user'] },
 
   ];
