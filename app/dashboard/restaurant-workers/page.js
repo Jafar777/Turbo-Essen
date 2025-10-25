@@ -302,7 +302,7 @@ export default function RestaurantWorkersPage() {
                     </svg>
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">No employees yet</h3>
-                  <p className="mb-4">You haven't hired any employees for your restaurant.</p>
+                  <p className="mb-4">You havent hired any employees for your restaurant.</p>
                   <button
                     onClick={() => setActiveTab('send-offer')}
                     className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-2 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-300"
