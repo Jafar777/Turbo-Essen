@@ -53,7 +53,7 @@ export async function GET(request) {
       })
         .sort({ createdAt: -1 })
         .populate('userId', 'firstName lastName email');
-    }else if (session.user.role === 'waiter') {
+    } else if (session.user.role === 'waiter') {
       // Find which restaurant the waiter works at
       const waiter = await User.findById(session.user.id).select('restaurantId');
       
@@ -71,9 +71,27 @@ export async function GET(request) {
         status: { $in: ['pending', 'accepted', 'preparing', 'served'] }
       })
         .sort({ createdAt: -1 })
-        .populate('userId', 'firstName lastName email');}
-    
-    else if (session.user.role === 'user') {
+        .populate('userId', 'firstName lastName email');
+    } else if (session.user.role === 'delivery') {
+      // Find which restaurant the delivery person works at
+      const deliveryPerson = await User.findById(session.user.id).select('restaurantId');
+
+      if (!deliveryPerson || !deliveryPerson.restaurantId) {
+        return NextResponse.json({
+          success: true,
+          orders: []
+        });
+      }
+
+      // Delivery persons see delivery orders that are on the way or delivered for their restaurant
+      orders = await Order.find({
+        restaurantId: deliveryPerson.restaurantId,
+        orderType: 'delivery',
+        status: { $in: ['on_the_way', 'delivered'] }
+      })
+        .sort({ createdAt: -1 })
+        .populate('userId', 'firstName lastName email');
+    } else if (session.user.role === 'user') {
       // Users see their own orders
       orders = await Order.find({ userId: session.user.id })
         .sort({ createdAt: -1 })
@@ -86,26 +104,6 @@ export async function GET(request) {
         .populate('restaurantId', 'name');
     } else {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-    if (session.user.role === 'waiter') {
-      // Find which restaurant the waiter works at
-      const waiter = await User.findById(session.user.id).select('restaurantId');
-
-      if (!waiter || !waiter.restaurantId) {
-        return NextResponse.json({
-          success: true,
-          orders: []
-        });
-      }
-
-      // Waiters see dine-in orders for their restaurant
-      orders = await Order.find({
-        restaurantId: waiter.restaurantId,
-        orderType: 'dine_in',
-        status: { $in: ['pending', 'accepted', 'preparing', 'served'] }
-      })
-        .sort({ createdAt: -1 })
-        .populate('userId', 'firstName lastName email');
     }
 
     return NextResponse.json({
@@ -123,7 +121,6 @@ export async function GET(request) {
 }
 
 // POST: Create a new order
-// app/api/orders/route.js - POST method
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -136,7 +133,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Only customers can place orders' }, { status: 403 });
     }
 
-    const { paymentMethod, items, total, specialInstructions, orderType, tableNumber } = await request.json();
+    const { paymentMethod, items, total, specialInstructions, orderType, tableNumber, deliveryLocation } = await request.json();
 
     if (!items || items.length === 0) {
       return NextResponse.json(
@@ -149,6 +146,14 @@ export async function POST(request) {
     if (orderType === 'dine_in' && !tableNumber) {
       return NextResponse.json(
         { error: 'Table number is required for dine-in orders' },
+        { status: 400 }
+      );
+    }
+
+    // Validate delivery location for delivery orders
+    if (orderType === 'delivery' && !deliveryLocation) {
+      return NextResponse.json(
+        { error: 'Delivery location is required for delivery orders' },
         { status: 400 }
       );
     }
@@ -169,8 +174,9 @@ export async function POST(request) {
       total,
       paymentMethod: paymentMethod || 'cash',
       specialInstructions: specialInstructions || '',
-      orderType: orderType || 'delivery', // Add orderType
-      tableNumber: orderType === 'dine_in' ? tableNumber : undefined, // Add tableNumber for dine-in
+      orderType: orderType || 'delivery',
+      tableNumber: orderType === 'dine_in' ? tableNumber : undefined,
+      deliveryLocation: orderType === 'delivery' ? deliveryLocation : undefined,
       status: 'pending'
     });
 

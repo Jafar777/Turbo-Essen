@@ -8,6 +8,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -37,7 +38,8 @@ export default function OrdersPage() {
   };
 
   const updateOrderStatus = async (orderId, newStatus) => {
-    if (session.user.role !== 'restaurant_owner') return;
+    // Allow restaurant owners and delivery persons to update status
+    if (session.user.role !== 'restaurant_owner' && session.user.role !== 'delivery') return;
     
     setUpdating(orderId);
     try {
@@ -96,6 +98,31 @@ export default function OrdersPage() {
     }
   };
 
+  const getOrderTypeBadge = (orderType) => {
+    const typeStyles = {
+      delivery: 'bg-blue-100 text-blue-800',
+      dine_in: 'bg-green-100 text-green-800',
+      takeaway: 'bg-orange-100 text-orange-800'
+    };
+
+    const typeLabels = {
+      delivery: '🚚 Delivery',
+      dine_in: '🍽️ Dine In',
+      takeaway: '📦 Takeaway'
+    };
+
+    return (
+      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeStyles[orderType]}`}>
+        {typeLabels[orderType]}
+      </span>
+    );
+  };
+
+  const openGoogleMaps = (coordinates, address) => {
+    const url = `https://www.google.com/maps?q=${coordinates.lat},${coordinates.lng}&hl=en`;
+    window.open(url, '_blank');
+  };
+
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
@@ -119,7 +146,9 @@ export default function OrdersPage() {
   }
 
   const isRestaurantOwner = session.user?.role === 'restaurant_owner';
+  const isAdmin = session.user?.role === 'admin';
   const isUser = session.user?.role === 'user';
+  const isDeliveryPerson = session.user?.role === 'delivery';
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -127,11 +156,18 @@ export default function OrdersPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            {isRestaurantOwner ? 'Restaurant Orders' : 'My Orders'}
+            {isRestaurantOwner ? 'Restaurant Orders' : 
+             isAdmin ? 'All Orders' : 
+             isDeliveryPerson ? 'Delivery Orders' : 
+             'My Orders'}
           </h1>
           <p className="text-gray-600 mt-2">
             {isRestaurantOwner 
               ? 'Manage and track customer orders' 
+              : isAdmin
+              ? 'View and manage all system orders'
+              : isDeliveryPerson
+              ? 'Deliver orders to customers'
               : 'Track your orders and their status'}
           </p>
         </div>
@@ -145,11 +181,15 @@ export default function OrdersPage() {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {isRestaurantOwner ? 'No orders yet' : 'No orders yet'}
+                {isRestaurantOwner || isAdmin || isDeliveryPerson ? 'No orders yet' : 'No orders yet'}
               </h2>
               <p className="text-gray-600 mb-8">
                 {isRestaurantOwner
                   ? 'Customer orders will appear here when they place orders from your restaurant.'
+                  : isAdmin
+                  ? 'Orders from all restaurants will appear here.'
+                  : isDeliveryPerson
+                  ? 'No delivery orders assigned to you yet.'
                   : 'You haven\'t placed any orders yet. Start exploring restaurants and place your first order!'}
               </p>
             </div>
@@ -163,15 +203,18 @@ export default function OrdersPage() {
                 <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {isRestaurantOwner 
-                          ? `Order from ${order.userName}` 
-                          : `Order from ${order.restaurantName}`}
-                      </h3>
-                      <p className="text-gray-600 text-sm mt-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {isRestaurantOwner || isAdmin || isDeliveryPerson
+                            ? `Order from ${order.userName}` 
+                            : `Order from ${order.restaurantName}`}
+                        </h3>
+                        {getOrderTypeBadge(order.orderType)}
+                      </div>
+                      <p className="text-gray-600 text-sm">
                         Order # {order._id.slice(-8).toUpperCase()} • {new Date(order.createdAt).toLocaleDateString()}
                       </p>
-                      {isRestaurantOwner && (
+                      {(isRestaurantOwner || isAdmin) && (
                         <p className="text-gray-600 text-sm">
                           Customer: {order.userEmail}
                         </p>
@@ -201,8 +244,84 @@ export default function OrdersPage() {
                           ))}
                         </div>
                       )}
+
+                      {/* Status Update Button for Delivery Persons */}
+                      {isDeliveryPerson && order.status === 'on_the_way' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateOrderStatus(order._id, 'delivered')}
+                            disabled={updating === order._id}
+                            className="px-3 py-1 text-sm font-medium bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                          >
+                            {updating === order._id ? '...' : 'Mark as Delivered'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Delivery Location Information - Show for restaurant owners, admins, and delivery persons when order is on the way */}
+                  {(isRestaurantOwner || isAdmin || isDeliveryPerson) && 
+                   order.orderType === 'delivery' && 
+                   order.deliveryLocation && 
+                   (isRestaurantOwner || isAdmin || order.status === 'on_the_way') && (
+                    <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="font-semibold text-blue-900 mb-3 flex items-center">
+                        <span className="mr-2">📍</span>
+                        Delivery Location
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">Address</p>
+                          <p className="text-gray-900">{order.deliveryLocation.address}</p>
+                          
+                          <button
+                            onClick={() => openGoogleMaps(order.deliveryLocation.coordinates, order.deliveryLocation.address)}
+                            className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
+                          >
+                            <span className="mr-1">🗺️</span>
+                            Open in Google Maps
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {order.deliveryLocation.apartment && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Apartment/Unit</p>
+                              <p className="text-gray-900">{order.deliveryLocation.apartment}</p>
+                            </div>
+                          )}
+                          
+                          {order.deliveryLocation.floor && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Floor</p>
+                              <p className="text-gray-900">{order.deliveryLocation.floor}</p>
+                            </div>
+                          )}
+                          
+                          {order.deliveryLocation.instructions && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Delivery Instructions</p>
+                              <p className="text-gray-900">{order.deliveryLocation.instructions}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Table Information for Dine-in Orders */}
+                  {(isRestaurantOwner || isAdmin) && order.orderType === 'dine_in' && order.tableNumber && (
+                    <div className="mb-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                      <h4 className="font-semibold text-green-900 mb-2 flex items-center">
+                        <span className="mr-2">🍽️</span>
+                        Dine-in Information
+                      </h4>
+                      <p className="text-gray-700">
+                        <span className="font-medium">Table Number:</span> {order.tableNumber}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="border-t border-gray-200 pt-4">
                     <div className="space-y-3">
@@ -230,7 +349,9 @@ export default function OrdersPage() {
 
                     <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between items-center">
                       <div>
-                        <p className="text-sm text-gray-600">Payment: {order.paymentMethod === 'cash' ? 'Cash on Delivery' : 'Credit Card'}</p>
+                        <p className="text-sm text-gray-600">
+                          Payment: {order.paymentMethod === 'cash' ? 'Cash on Delivery' : 'Credit Card'}
+                        </p>
                         {order.specialInstructions && (
                           <p className="text-sm text-gray-600 mt-1">
                             Instructions: {order.specialInstructions}

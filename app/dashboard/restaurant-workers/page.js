@@ -9,8 +9,10 @@ export default function RestaurantWorkersPage() {
   const router = useRouter();
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('send-offer');
+  const [activeTab, setActiveTab] = useState('employees'); // Default to employees tab
   const [sentOffers, setSentOffers] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [updatingEmployee, setUpdatingEmployee] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
     role: 'chef',
@@ -32,6 +34,7 @@ export default function RestaurantWorkersPage() {
     
     fetchRestaurant();
     fetchSentOffers();
+    fetchEmployees();
   }, [session, status, router]);
 
   const fetchRestaurant = async () => {
@@ -57,6 +60,18 @@ export default function RestaurantWorkersPage() {
       }
     } catch (error) {
       console.error('Error fetching sent offers:', error);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch('/api/restaurants/employees');
+      if (response.ok) {
+        const data = await response.json();
+        setEmployees(data.employees || []);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
     }
   };
 
@@ -114,6 +129,43 @@ export default function RestaurantWorkersPage() {
     }
   };
 
+  const handleUpdateEmployeeRole = async (employeeId, newRole) => {
+    setUpdatingEmployee(employeeId);
+    try {
+      const response = await fetch('/api/restaurants/employees', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employeeId,
+          newRole
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(result.message || 'Employee role updated successfully');
+        fetchEmployees(); // Refresh the employees list
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to update employee role');
+      }
+    } catch (error) {
+      console.error('Error updating employee role:', error);
+      alert('Failed to update employee role');
+    } finally {
+      setUpdatingEmployee(null);
+    }
+  };
+
+  const handleRemoveEmployee = async (employeeId) => {
+    if (!confirm('Are you sure you want to remove this employee? They will lose access to your restaurant.')) return;
+    
+    // Removing an employee means setting their role to 'user'
+    await handleUpdateEmployeeRole(employeeId, 'user');
+  };
+
   const getStatusBadge = (status) => {
     const statusStyles = {
       pending: 'bg-yellow-100 text-yellow-800',
@@ -133,13 +185,15 @@ export default function RestaurantWorkersPage() {
     const roleStyles = {
       chef: 'bg-orange-100 text-orange-800',
       waiter: 'bg-blue-100 text-blue-800',
-      delivery: 'bg-green-100 text-green-800'
+      delivery: 'bg-green-100 text-green-800',
+      user: 'bg-gray-100 text-gray-800'
     };
 
     const roleLabels = {
       chef: 'Chef',
       waiter: 'Waiter',
-      delivery: 'Delivery Person'
+      delivery: 'Delivery Person',
+      user: 'User'
     };
 
     return (
@@ -191,6 +245,20 @@ export default function RestaurantWorkersPage() {
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 mb-8">
           <div className="flex flex-col sm:flex-row">
             <button
+              onClick={() => setActiveTab('employees')}
+              className={`flex-1 group px-8 py-6 font-semibold text-lg transition-all duration-300 relative overflow-hidden ${
+                activeTab === 'employees'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-amber-700 hover:bg-amber-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-3">
+                <span className="text-2xl">👥</span>
+                <span>Employees ({employees.length})</span>
+              </div>
+            </button>
+            
+            <button
               onClick={() => setActiveTab('send-offer')}
               className={`flex-1 group px-8 py-6 font-semibold text-lg transition-all duration-300 relative overflow-hidden ${
                 activeTab === 'send-offer'
@@ -222,6 +290,77 @@ export default function RestaurantWorkersPage() {
 
         {/* Tab Content */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+          {/* Employees Tab */}
+          {activeTab === 'employees' && (
+            <div className="p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Current Employees</h2>
+              {employees.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No employees yet</h3>
+                  <p className="mb-4">You haven't hired any employees for your restaurant.</p>
+                  <button
+                    onClick={() => setActiveTab('send-offer')}
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-2 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-300"
+                  >
+                    Send Job Offers
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {employees.map((employee) => (
+                    <div key={employee._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-4 mb-3">
+                            <div>
+                              <h3 className="font-semibold text-gray-900 text-lg">
+                                {employee.firstName} {employee.lastName}
+                              </h3>
+                              <p className="text-gray-600 text-sm">{employee.email}</p>
+                            </div>
+                            {getRoleBadge(employee.role)}
+                          </div>
+                          <p className="text-gray-600 text-sm">
+                            Joined: {new Date(employee.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row gap-3 mt-4 lg:mt-0">
+                          {/* Role Change Dropdown */}
+                          <select
+                            value={employee.role}
+                            onChange={(e) => handleUpdateEmployeeRole(employee._id, e.target.value)}
+                            disabled={updatingEmployee === employee._id}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:opacity-50"
+                          >
+                            <option value="chef">Chef</option>
+                            <option value="waiter">Waiter</option>
+                            <option value="delivery">Delivery Person</option>
+                          </select>
+                          
+                          {/* Remove Employee Button */}
+                          <button
+                            onClick={() => handleRemoveEmployee(employee._id)}
+                            disabled={updatingEmployee === employee._id}
+                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+                          >
+                            {updatingEmployee === employee._id ? 'Updating...' : 'Remove'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Send Offer Tab */}
           {activeTab === 'send-offer' && (
             <div className="p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Send Job Offer</h2>
@@ -278,6 +417,7 @@ export default function RestaurantWorkersPage() {
             </div>
           )}
 
+          {/* Sent Offers Tab */}
           {activeTab === 'sent-offers' && (
             <div className="p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Sent Job Offers</h2>

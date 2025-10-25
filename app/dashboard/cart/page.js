@@ -4,6 +4,20 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// Dynamically import the map component to avoid SSR issues
+const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto"></div>
+        <p className="mt-2 text-gray-600">Loading map...</p>
+      </div>
+    </div>
+  )
+});
 
 export default function CartPage() {
   const [cart, setCart] = useState(null);
@@ -12,6 +26,7 @@ export default function CartPage() {
   const [selectedPayment, setSelectedPayment] = useState('cash');
   const [selectedOrderType, setSelectedOrderType] = useState('delivery');
   const [tableNumber, setTableNumber] = useState('');
+  const [deliveryLocation, setDeliveryLocation] = useState(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -131,6 +146,10 @@ export default function CartPage() {
     }
   };
 
+  const handleLocationSelect = (location) => {
+    setDeliveryLocation(location);
+  };
+
   const placeOrder = async () => {
     if (!cart || cart.items.length === 0) return;
     
@@ -142,6 +161,17 @@ export default function CartPage() {
 
     if (selectedOrderType === 'dine_in' && (isNaN(tableNumber) || tableNumber < 1)) {
       alert('Please enter a valid table number');
+      return;
+    }
+
+    // Validate delivery order
+    if (selectedOrderType === 'delivery' && !deliveryLocation) {
+      alert('Please set your delivery location on the map');
+      return;
+    }
+
+    if (selectedOrderType === 'delivery' && (!deliveryLocation.address || !deliveryLocation.coordinates)) {
+      alert('Please set a valid delivery location');
       return;
     }
     
@@ -157,6 +187,17 @@ export default function CartPage() {
       // Add table number for dine-in orders
       if (selectedOrderType === 'dine_in') {
         orderData.tableNumber = parseInt(tableNumber);
+      }
+
+      // Add delivery location for delivery orders
+      if (selectedOrderType === 'delivery' && deliveryLocation) {
+        orderData.deliveryLocation = {
+          address: deliveryLocation.address,
+          coordinates: deliveryLocation.coordinates,
+          apartment: deliveryLocation.apartment || '',
+          floor: deliveryLocation.floor || '',
+          instructions: deliveryLocation.instructions || ''
+        };
       }
 
       const response = await fetch('/api/orders', {
@@ -226,7 +267,7 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
@@ -442,6 +483,13 @@ export default function CartPage() {
                       </p>
                     </div>
                   )}
+
+                  {/* Delivery Location Map for Delivery */}
+                  {selectedOrderType === 'delivery' && (
+                    <div className="mt-4">
+                      <DeliveryMap onLocationSelect={handleLocationSelect} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Payment Method Selection */}
@@ -501,7 +549,9 @@ export default function CartPage() {
 
                 <button
                   onClick={placeOrder}
-                  disabled={isPlacingOrder || updating || (selectedOrderType === 'dine_in' && !tableNumber)}
+                  disabled={isPlacingOrder || updating || 
+                    (selectedOrderType === 'dine_in' && !tableNumber) ||
+                    (selectedOrderType === 'delivery' && !deliveryLocation)}
                   className="w-full bg-amber-500 text-white py-3 px-4 rounded-lg font-semibold hover:bg-amber-600 transition-colors duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isPlacingOrder 

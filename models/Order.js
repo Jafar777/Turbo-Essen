@@ -36,6 +36,35 @@ const OrderItemSchema = new mongoose.Schema({
   }
 });
 
+const DeliveryLocationSchema = new mongoose.Schema({
+  address: {
+    type: String,
+    required: true
+  },
+  coordinates: {
+    lat: {
+      type: Number,
+      required: true
+    },
+    lng: {
+      type: Number,
+      required: true
+    }
+  },
+  apartment: {
+    type: String,
+    default: ''
+  },
+  floor: {
+    type: String,
+    default: ''
+  },
+  instructions: {
+    type: String,
+    default: ''
+  }
+});
+
 const OrderSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -76,6 +105,13 @@ const OrderSchema = new mongoose.Schema({
     type: Number,
     required: function() {
       return this.orderType === 'dine_in';
+    }
+  },
+  // Add delivery location for delivery orders
+  deliveryLocation: {
+    type: DeliveryLocationSchema,
+    required: function() {
+      return this.orderType === 'delivery';
     }
   },
   paymentMethod: {
