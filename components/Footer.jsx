@@ -1,7 +1,6 @@
 // components/Footer.jsx
 import Link from 'next/link';
 import Image from "next/image";
-
 import { 
   FiMail, 
   FiPhone, 
@@ -75,28 +74,29 @@ export default function Footer() {
       {/* Main Footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
-          {/* Brand Section */}
+          {/* Brand Section - Fixed: No nested interactive elements */}
           <div className="lg:col-span-2">
-            <Link href="/" className="flex items-center space-x-3 mb-6">
-   <button
-            onClick={scrollToTop}
-            className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
-          >
-            <div className="w-24 h-24 relative">
-              <Link href="/">
-              <Image
-                src="/logo.png"
-                alt="TurboEssen Logo"
-                fill
-                className="object-contain"
-              />
-              </Link>
-            </div>
-          </button>
-              <span className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+            <div className="flex items-center space-x-3 mb-6">
+              <button
+                onClick={scrollToTop}
+                className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-12 h-12 relative">
+                  <Image
+                    src="/logo.png"
+                    alt="TurboEssen Logo"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              </button>
+              <button
+                onClick={scrollToTop}
+                className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent hover:from-amber-300 hover:to-orange-400 transition-all duration-200"
+              >
                 TurboEssen
-              </span>
-            </Link>
+              </button>
+            </div>
             
             <p className="text-gray-300 mb-6 text-lg leading-relaxed">
               Revolutionizing food delivery with cutting-edge technology and 
