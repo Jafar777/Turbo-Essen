@@ -2,12 +2,13 @@
 "use client";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function HomepageHero() {
   const router = useRouter();
 
   const handleSignUp = () => {
-    router.push("/signup");
+    router.push("/dashboard/apply-restaurant");
   };
 
   return (
@@ -48,12 +49,14 @@ export default function HomepageHero() {
           </button>
           
           {/* Order Food button */}
+          <Link href="/restaurants">
           <button
-            onClick={handleSignUp}
+
             className="px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 hover:scale-105 bg-white text-gray-800 hover:bg-gray-100 hover:shadow-lg hover:shadow-white/20 border-2 border-white"
           >
             Order Food Now
           </button>
+          </Link>
         </div>
       </div>
     </section>
