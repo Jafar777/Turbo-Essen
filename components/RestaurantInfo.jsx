@@ -848,7 +848,6 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
           )}
         </div>
 
-        // Add this section to your RestaurantInfo component:
 <div className="space-y-4">
   <h3 className="text-lg font-semibold text-gray-900">Table Management</h3>
   
