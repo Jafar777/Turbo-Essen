@@ -17,7 +17,8 @@ export default function OrderNow() {
   const fetchRestaurants = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/restaurants');
+      // Use the public restaurants endpoint that includes review data
+      const response = await fetch('/api/public/restaurants');
       
       if (response.ok) {
         const data = await response.json();
