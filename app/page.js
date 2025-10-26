@@ -5,6 +5,9 @@ import Navbar from "../components/Navbar";
 import HomepageHero from "../components/HomepageHero";
 import FoodAnimation from "../components/FoodAnimation";
 import OrderNow from "../components/OrderNow"; // Add this import
+import Pricing from "@/components/Pricing";
+import Contact from "@/components/Contact";
+import Footer from "@/components/Footer";
 
 function HomeContent() {
   useEffect(() => {
@@ -22,14 +25,21 @@ function HomeContent() {
           <FoodAnimation />
           
           {/* Use the new OrderNow component */}
-          <OrderNow />
+          <section id="order-now"> 
+          <  OrderNow />
+          </section>
           
           {/* Placeholder sections for navigation */}
-          <section id="features" className="min-h-screen bg-gray-50 pt-16"></section>
-          <section id="clients" className="min-h-screen bg-white pt-16"></section>
-          <section id="pricing" className="min-h-screen bg-gray-50 pt-16"></section>
-          <section id="contacts" className="min-h-screen bg-white pt-16"></section>
+
+          <section id="pricing" className="min-h-screen bg-gray-50 pt-16">
+            <Pricing />
+          </section>
+          <section id="contacts" className="min-h-screen bg-white pt-16">
+            <Contact />
+          </section>
+
         </main>
+        <Footer />
       </div>
   );
 }

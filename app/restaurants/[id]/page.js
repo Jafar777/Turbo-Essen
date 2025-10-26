@@ -71,10 +71,10 @@ export default async function RestaurantPage({ params }) {
   return (
     <div>
             <Navbar />
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-amber-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-amber-50 ">
 
       {/* Enhanced Restaurant Header */}
-      <div className="relative bg-white shadow-xl">
+      <div className="relative bg-white shadow-xl mt-22">
         {/* Banner Section */}
         <div className="relative h-64 md:h-80 overflow-hidden">
           {restaurant.banner ? (

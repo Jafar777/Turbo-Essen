@@ -10,7 +10,6 @@ import { IoRestaurantSharp } from 'react-icons/io5';
 import { FaCartShopping } from 'react-icons/fa6';
 import { LuPackageSearch } from 'react-icons/lu';
 import { MdOutlineRateReview } from 'react-icons/md';
-import { FaLanguage } from 'react-icons/fa6';
 import { IoStatsChartSharp } from "react-icons/io5";
 import { MdReport } from 'react-icons/md';
 import { IoNotifications } from 'react-icons/io5';
@@ -34,7 +33,6 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
     { href: '/dashboard/cart', label: 'Cart', icon: FaCartShopping, roles: [ 'user'] },
     { href: '/dashboard/orders', label: 'Orders', icon: LuPackageSearch, roles: ['admin', 'user', 'restaurant_owner', 'chef', 'waiter', 'delivery'] },
     { href: '/dashboard/reviews', label: 'Reviews', icon: MdOutlineRateReview, roles: ['admin', 'restaurant_owner', 'user'] },
-    { href: '/dashboard/languages', label: 'Languages', icon: FaLanguage, roles: ['admin'] },
     { href: '/dashboard/performance', label: 'Performance', icon: IoStatsChartSharp, roles: ['admin', 'restaurant_owner'] },
     { href: '/dashboard/reports', label: 'Reports', icon: MdReport, roles: ['admin'] },
     { href: '/dashboard/notifications', label: 'Notifications', icon: IoNotifications, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },

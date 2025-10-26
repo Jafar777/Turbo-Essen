@@ -1,12 +1,13 @@
-// /Users/jafar/Desktop/turboessen/components/RestaurantCard.jsx
+// components/RestaurantCard.jsx
 import Link from 'next/link';
+import { FiStar, FiMapPin, FiPhone } from 'react-icons/fi';
 
 export default function RestaurantCard({ restaurant }) {
   return (
     <Link href={`/restaurants/${restaurant._id}`}>
       <div className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 hover:border-amber-200 transform hover:-translate-y-1">
         {/* Banner Image with Overlay */}
-        <div className="h-48 bg-gradient-to-br from-amber-400 to-orange-500 relative ">
+        <div className="h-48 bg-gradient-to-br from-amber-400 to-orange-500 relative">
           {restaurant.banner ? (
             <>
               <img
@@ -25,7 +26,20 @@ export default function RestaurantCard({ restaurant }) {
             </div>
           )}
           
-          {/* Floating Avatar - Perfectly Centered */}
+          {/* Rating Badge */}
+          {restaurant.averageRating > 0 && (
+            <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1">
+              <FiStar className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <span className="text-sm font-semibold text-gray-900">
+                {restaurant.averageRating.toFixed(1)}
+              </span>
+              <span className="text-xs text-gray-500">
+                ({restaurant.totalReviews || 0})
+              </span>
+            </div>
+          )}
+          
+          {/* Floating Avatar */}
           <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
             <div className="relative">
               {restaurant.avatar ? (
@@ -61,6 +75,25 @@ export default function RestaurantCard({ restaurant }) {
             </div>
           )}
           
+          {/* Rating Display */}
+          <div className="flex items-center justify-center mb-3">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <FiStar
+                  key={star}
+                  className={`w-4 h-4 ${
+                    star <= Math.round(restaurant.averageRating)
+                      ? 'text-amber-500 fill-amber-500'
+                      : 'text-gray-300'
+                  }`}
+                />
+              ))}
+              <span className="text-sm text-gray-600 ml-1">
+                ({restaurant.totalReviews || 0} reviews)
+              </span>
+            </div>
+          </div>
+          
           {restaurant.description && (
             <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-2">
               {restaurant.description}
@@ -71,19 +104,14 @@ export default function RestaurantCard({ restaurant }) {
           <div className="space-y-2">
             {restaurant.address && (
               <div className="flex items-center justify-center text-gray-500 text-sm">
-                <svg className="w-4 h-4 mr-1.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+                <FiMapPin className="w-4 h-4 mr-1.5 text-amber-500" />
                 <span className="truncate">{restaurant.address}</span>
               </div>
             )}
             
             {restaurant.phone && (
               <div className="flex items-center justify-center text-gray-500 text-sm">
-                <svg className="w-4 h-4 mr-1.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
+                <FiPhone className="w-4 h-4 mr-1.5 text-amber-500" />
                 <span>{restaurant.phone}</span>
               </div>
             )}

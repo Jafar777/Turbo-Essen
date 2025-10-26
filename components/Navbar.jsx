@@ -30,6 +30,11 @@ export default function Navbar() {
   const notificationRef = useRef(null);
   const cartRef = useRef(null);
 
+  // Check if we're on restaurant pages
+  const isRestaurantPage = pathname?.startsWith('/restaurants');
+  const isDashboard = pathname?.startsWith('/dashboard');
+  const isUser = session?.user?.role === 'user';
+
   // Fetch notifications using SWR
   const { data: notificationData, mutate: mutateNotifications } = useSWR(
     session ? '/api/notifications' : null,
@@ -38,44 +43,39 @@ export default function Navbar() {
   );
 
   // Fetch cart data for users only
-const { data: cartData, mutate: mutateCart } = useSWR(
-  session && session.user?.role === 'user' ? '/api/cart' : null,
-  fetcher,
-  { 
-    refreshInterval: 5000,
-    // Add error handling and revalidation on focus
-    revalidateOnFocus: true,
-    revalidateOnReconnect: true
-  }
-);
-
+  const { data: cartData, mutate: mutateCart } = useSWR(
+    session && session.user?.role === 'user' ? '/api/cart' : null,
+    fetcher,
+    { 
+      refreshInterval: 5000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true
+    }
+  );
 
   const notifications = notificationData?.notifications || [];
   const unreadCount = notificationData?.unreadCount || 0;
-const cartItems = cartData?.items || [];
-const cartTotal = cartData?.total || 0;
-const cartItemCount = cartData?.itemCount || cartItems.reduce((total, item) => total + item.quantity, 0);
-
-  
-  const isDashboard = pathname?.startsWith('/dashboard');
-  const isUser = session?.user?.role === 'user';
+  const cartItems = cartData?.items || [];
+  const cartTotal = cartData?.total || 0;
+  const cartItemCount = cartData?.itemCount || cartItems.reduce((total, item) => total + item.quantity, 0);
 
   useEffect(() => {
-    // Only add scroll effect if not on dashboard
-    if (!isDashboard) {
-      const handleScroll = () => {
-        setIsScrolled(window.scrollY > 50);
-      };
-
-      window.addEventListener("scroll", handleScroll);
-      return () => {
-        window.removeEventListener("scroll", handleScroll);
-      };
-    } else {
-      // Static background for dashboard
+    // For restaurant pages and dashboard, always have solid background
+    if (isRestaurantPage || isDashboard) {
       setIsScrolled(true);
+      return;
     }
-  }, [isDashboard]);
+
+    // Only add scroll effect for other pages
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [isRestaurantPage, isDashboard]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -214,19 +214,16 @@ const cartItemCount = cartData?.itemCount || cartItems.reduce((total, item) => t
   // Updated navItems with Order Now
   const navItems = [
     { id: "home", label: "Home", href: "/" },
-    { id: "features", label: "Features", href: "/#features" },
     { id: "order-now", label: "Order Now", href: "/#order-now" },
-    { id: "clients", label: "Our Clients", href: "/#clients" },
     { id: "pricing", label: "Pricing", href: "/#pricing" },
     { id: "contacts", label: "Contacts", href: "/#contacts" }
   ];
 
   // Determine navbar background and text colors
-  const navbarBackground = isDashboard 
+  // Always solid white background for restaurant pages and dashboard
+  const navbarBackground = isRestaurantPage || isDashboard || isScrolled 
     ? "bg-white shadow-lg text-gray-800" 
-    : isScrolled 
-      ? "bg-white shadow-lg text-gray-800" 
-      : "bg-transparent text-white";
+    : "bg-transparent text-white";
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${navbarBackground}`}>
@@ -301,7 +298,7 @@ const cartItemCount = cartData?.itemCount || cartItems.reduce((total, item) => t
                         <p className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</p>
                         <p className="text-sm text-gray-600">Add some delicious items to get started!</p>
                         <Link 
-                          href="/order-now"
+                          href="/restaurants"
                           className="inline-block mt-4 px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
                         >
                           Browse Restaurants
@@ -371,7 +368,6 @@ const cartItemCount = cartData?.itemCount || cartItems.reduce((total, item) => t
                             >
                               View Cart
                             </Link>
-
                           </div>
                         </div>
                       </>
