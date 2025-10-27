@@ -3,8 +3,9 @@ import Link from 'next/link';
 import { FiStar, FiMapPin, FiPhone } from 'react-icons/fi';
 
 export default function RestaurantCard({ restaurant }) {
+  // Use only the slug, remove the fallback to ID
   return (
-    <Link href={`/restaurants/${restaurant._id}`}>
+    <Link href={`/restaurants/${restaurant.slug}`}>
       <div className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 hover:border-amber-200 transform hover:-translate-y-1">
         {/* Banner Image with Overlay */}
         <div className="h-48 bg-gradient-to-br from-amber-400 to-orange-500 relative">

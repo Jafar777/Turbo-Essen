@@ -36,6 +36,7 @@ export async function GET(request) {
     });
   }
 }
+
 export async function PUT(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -59,9 +60,31 @@ export async function PUT(request) {
     }
 
     if (action === 'accept') {
+      // Generate slug from restaurant name
+      const generateSlug = (name) => {
+        return name
+          .toLowerCase()
+          .replace(/[^a-z0-9 -]/g, '') // remove invalid chars
+          .replace(/\s+/g, '-') // replace spaces with -
+          .replace(/-+/g, '-') // replace multiple - with single -
+          .trim('-');
+      };
+
+      let slug = generateSlug(application.restaurantName);
+      let slugExists = await Restaurant.findOne({ slug });
+      let counter = 1;
+      
+      // Ensure unique slug
+      while (slugExists) {
+        slug = `${generateSlug(application.restaurantName)}-${counter}`;
+        slugExists = await Restaurant.findOne({ slug });
+        counter++;
+      }
+
       // Create the restaurant first
       const newRestaurant = new Restaurant({
         name: application.restaurantName,
+        slug: slug,
         ownerId: application.userId._id,
         description: application.description,
         address: application.address,

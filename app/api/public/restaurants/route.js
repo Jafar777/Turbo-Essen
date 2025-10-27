@@ -35,7 +35,7 @@ export async function GET(request) {
     }
 
     const restaurants = await Restaurant.find(filter)
-      .select('name description address phone cuisineType avatar banner averageRating totalReviews totalTables availableTables')
+      .select('name description address phone cuisineType avatar banner averageRating totalReviews totalTables availableTables slug') // ADD slug here
       .sort({ averageRating: -1, totalReviews: -1 });
 
     // Get unique cuisine types for filters

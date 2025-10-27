@@ -1,18 +1,29 @@
-// app/api/public/restaurants/[id]/reviews/route.js
+// app/api/public/restaurants/slug/[slug]/reviews/route.js
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Review from '@/models/Review';
+import Restaurant from '@/models/Restaurant';
 
 export async function GET(request, { params }) {
   try {
-    const { id } = await params;
+    const { slug } = await params;
     
     await dbConnect();
+
+    // First, find the restaurant by slug to get its ID
+    const restaurant = await Restaurant.findOne({ slug, isActive: true });
+    
+    if (!restaurant) {
+      return NextResponse.json(
+        { success: false, error: 'Restaurant not found' },
+        { status: 404 }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit')) || 10;
 
-    const reviews = await Review.find({ restaurantId: id })
+    const reviews = await Review.find({ restaurantId: restaurant._id })
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate('userId', 'firstName lastName image');

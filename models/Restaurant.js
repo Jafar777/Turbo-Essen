@@ -7,6 +7,12 @@ const RestaurantSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  slug: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
   ownerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -92,6 +98,19 @@ const RestaurantSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Pre-save middleware to generate slug from name
+RestaurantSchema.pre('save', function(next) {
+  if (this.isModified('name')) {
+    this.slug = this.name
+      .toLowerCase()
+      .replace(/[^a-z0-9 -]/g, '') // remove invalid chars
+      .replace(/\s+/g, '-') // replace spaces with -
+      .replace(/-+/g, '-') // replace multiple - with single -
+      .trim('-');
+  }
+  next();
 });
 
 export default mongoose.models.Restaurant || mongoose.model('Restaurant', RestaurantSchema);

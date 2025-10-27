@@ -1,11 +1,11 @@
-// /Users/jafar/Desktop/turboessen/app/restaurants/[id]/page.js
-import { notFound } from 'next/navigation';
+// app/restaurants/[slug]/page.js
+import { notFound, redirect } from 'next/navigation';
 import RestaurantMenu from '@/components/RestaurantMenu';
 import Navbar from '@/components/Navbar';
 import RestaurantReviews from '@/components/RestaurantReviews';
 import ReportButton from '@/components/ReportButton';
 
-async function getRestaurant(id) {
+async function getRestaurantById(id) {
   try {
     const response = await fetch(`${process.env.NEXTAUTH_URL}/api/restaurants/${id}`, {
       next: { revalidate: 60 }
@@ -17,15 +17,32 @@ async function getRestaurant(id) {
     }
     return null;
   } catch (error) {
-    console.error('Error fetching restaurant:', error);
+    console.error('Error fetching restaurant by ID:', error);
     return null;
   }
 }
 
-async function getRestaurantDishes(restaurantId) {
+async function getRestaurantBySlug(slug) {
+  try {
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/public/restaurants/slug/${slug}`, {
+      next: { revalidate: 60 }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.restaurant;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching restaurant by slug:', error);
+    return null;
+  }
+}
+
+async function getRestaurantDishes(slug) {
   try {
     const response = await fetch(
-      `${process.env.NEXTAUTH_URL}/api/public/restaurants/${restaurantId}/dishes`,
+      `${process.env.NEXTAUTH_URL}/api/public/restaurants/slug/${slug}/dishes`,
       { next: { revalidate: 60 } }
     );
 
@@ -40,10 +57,10 @@ async function getRestaurantDishes(restaurantId) {
   }
 }
 
-async function getRestaurantReviews(restaurantId) {
+async function getRestaurantReviews(slug) {
   try {
     const response = await fetch(
-      `${process.env.NEXTAUTH_URL}/api/public/restaurants/${restaurantId}/reviews`,
+      `${process.env.NEXTAUTH_URL}/api/public/restaurants/slug/${slug}/reviews`,
       { next: { revalidate: 60 } }
     );
 
@@ -58,15 +75,36 @@ async function getRestaurantReviews(restaurantId) {
   }
 }
 
-export default async function RestaurantPage({ params }) {
-  const { id } = await params;
-  const restaurant = await getRestaurant(id);
-  const dishes = await getRestaurantDishes(id);
-  const reviews = await getRestaurantReviews(id);
+// Check if string is a valid MongoDB ID
+function isValidObjectId(str) {
+  return /^[0-9a-fA-F]{24}$/.test(str);
+}
 
+export default async function RestaurantPage({ params }) {
+  const { slug } = await params;
+  
+  let restaurant;
+  
+  // Check if the parameter is an ID (MongoDB ObjectId)
+  if (isValidObjectId(slug)) {
+    restaurant = await getRestaurantById(slug);
+    
+    // If we found a restaurant by ID and it has a slug, redirect to the slug URL
+    if (restaurant && restaurant.slug) {
+      redirect(`/restaurants/${restaurant.slug}`);
+    }
+  } else {
+    // It's a slug, try to fetch by slug
+    restaurant = await getRestaurantBySlug(slug);
+  }
+
+  // If no restaurant found by either method
   if (!restaurant) {
     notFound();
   }
+
+  const dishes = await getRestaurantDishes(slug);
+  const reviews = await getRestaurantReviews(slug);
 
   return (
     <div>
@@ -199,8 +237,23 @@ export default async function RestaurantPage({ params }) {
 }
 
 export async function generateMetadata({ params }) {
-  const { id } = await params;
-  const restaurant = await getRestaurant(id);
+  const { slug } = await params;
+  
+  let restaurant;
+  
+  if (/^[0-9a-fA-F]{24}$/.test(slug)) {
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/restaurants/${slug}`);
+    if (response.ok) {
+      const data = await response.json();
+      restaurant = data.restaurant;
+    }
+  } else {
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/public/restaurants/slug/${slug}`);
+    if (response.ok) {
+      const data = await response.json();
+      restaurant = data.restaurant;
+    }
+  }
 
   return {
     title: restaurant ? `${restaurant.name} - Order Now` : 'Restaurant Not Found',

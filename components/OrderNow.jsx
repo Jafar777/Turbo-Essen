@@ -22,11 +22,14 @@ export default function OrderNow() {
       
       if (response.ok) {
         const data = await response.json();
+                console.log('API Response:', data); // Debug log
+
         if (data.success) {
           // Get the 6 latest restaurants (most recently created)
           const latestRestaurants = data.restaurants
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
             .slice(0, 6);
+                      console.log('Restaurants with slugs:', latestRestaurants.map(r => ({ name: r.name, slug: r.slug }))); // Debug log
           setRestaurants(latestRestaurants);
         } else {
           setError('Failed to load restaurants');
