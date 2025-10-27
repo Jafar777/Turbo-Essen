@@ -3,6 +3,12 @@ import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
 import { hashPassword } from '@/lib/passwordUtils';
 import { NextResponse } from 'next/server';
+import { sendVerificationEmail } from '@/lib/email-verification'; // ADD THIS IMPORT
+
+
+function generateVerificationCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export async function POST(request) {
   try {
@@ -35,6 +41,9 @@ export async function POST(request) {
         { status: 400 }
       );
     }
+     const verificationCode = generateVerificationCode();
+    const verificationCodeExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
 
     // Hash password
     const hashedPassword = await hashPassword(password);
@@ -45,22 +54,37 @@ export async function POST(request) {
       lastName: lastName.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
-      coins: 50
+      coins: 50 ,
+      isVerified: false,
+      verificationCode,
+      verificationCodeExpires
     });
 
     await newUser.save();
+        const emailSent = await sendVerificationEmail(email, verificationCode, firstName);
+    
+    if (!emailSent) {
+      // If email fails, delete the user
+      await User.findByIdAndDelete(newUser._id);
+      return NextResponse.json(
+        { error: 'Failed to send verification email' },
+        { status: 500 }
+      );
+    }
     
     console.log(`User created with email: ${newUser.email}`);
     
     return NextResponse.json(
       { 
-        message: 'User created successfully',
+        message: 'Verification email sent. Please check your email.',
         user: {
           id: newUser._id,
           email: newUser.email,
           firstName: newUser.firstName,
           lastName: newUser.lastName
-        }
+        },
+        requiresVerification: true
+
       },
       { status: 201 }
     );

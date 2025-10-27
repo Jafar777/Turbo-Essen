@@ -41,7 +41,19 @@ const UserSchema = new mongoose.Schema({
   image: {
     type: String,
     default: null
-  }
+  },
+isVerified: {
+  type: Boolean,
+  default: false
+},
+verificationCode: {
+  type: String,
+  select: false
+},
+verificationCodeExpires: {
+  type: Date,
+  select: false
+}
 
 }, {
   timestamps: true
