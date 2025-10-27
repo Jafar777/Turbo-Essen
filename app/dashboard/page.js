@@ -306,7 +306,7 @@ export default function Dashboard() {
               {getGreeting()}, {session?.user?.firstName}! 👋
             </h1>
             <p className="text-lg text-gray-600">
-              Welcome back to your TurboEssen dashboard. Here's what's happening today.
+              Welcome back to your TurboEssen dashboard. Heres whats happening today.
             </p>
           </div>
           <div className="mt-4 lg:mt-0 flex items-center space-x-4">
