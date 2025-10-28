@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { showToast } from '@/lib/toast';
 
 export default function WaiterDashboard() {
   const [tables, setTables] = useState({ total: 0, available: 0 });
@@ -67,10 +68,11 @@ export default function WaiterDashboard() {
       if (response.ok) {
         const data = await response.json();
         setTables(data.tables);
-        alert('Tables updated successfully!');
+           showToast.success('Tables updated successfully!');
+
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to update tables');
+    showToast.error(error.error || 'Failed to update tables');
       }
     } catch (error) {
       console.error('Error updating tables:', error);
@@ -94,10 +96,10 @@ export default function WaiterDashboard() {
       if (response.ok) {
         fetchOrders(); // Refresh orders
         fetchTables(); // Refresh tables if order was marked as paid
-        alert('Order updated successfully!');
+    showToast.success('Order updated successfully!');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to update order');
+    showToast.error(error.error || 'Failed to update order');
       }
     } catch (error) {
       console.error('Error updating order:', error);

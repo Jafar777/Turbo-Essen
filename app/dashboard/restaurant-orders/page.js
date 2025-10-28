@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { showToast } from '@/lib/toast';
 
 export default function RestaurantOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -57,7 +58,7 @@ const fetchOrders = async () => {
       if (response.ok) {
         fetchOrders(); // Refresh orders
       } else {
-        alert('Failed to update order status');
+    showToast.error('Failed to update order status');
       }
     } catch (error) {
       console.error('Error updating order:', error);

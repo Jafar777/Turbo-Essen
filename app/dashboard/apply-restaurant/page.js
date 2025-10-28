@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
+import { showToast } from '@/lib/toast';
 
 export default function ApplyRestaurantPage() {
   const { data: session, status } = useSession();
@@ -95,7 +96,7 @@ const handleSubmit = async (e) => {
     const result = await response.json();
 
     if (response.ok) {
-      alert('Application submitted successfully! We will review your request.');
+    showToast.success('Application submitted successfully! We will review your request.');
       // Reset form to Germany coordinates
       setFormData({
         restaurantName: '',
@@ -107,7 +108,7 @@ const handleSubmit = async (e) => {
       });
       setSelectedLocation({ lat: 52.5200, lng: 13.4050 });
     } else {
-      alert(result.error || 'Failed to submit application. Please try again.');
+    showToast.error(result.error || 'Failed to submit application. Please try again.');
     }
   } catch (error) {
     console.error('Error submitting application:', error);

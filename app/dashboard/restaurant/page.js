@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import RestaurantMenuManager from '@/components/RestaurantMenuManager';
 import RestaurantInfo from '@/components/RestaurantInfo';
+import { showToast } from '@/lib/toast';
 
 export default function RestaurantPage() {
   const { data: session, status } = useSession();

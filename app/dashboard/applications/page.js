@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { showToast } from '@/lib/toast';
 
 export default function ApplicationsPage() {
   const { data: session, status } = useSession();
@@ -62,11 +63,11 @@ export default function ApplicationsPage() {
         setApplications(applications.filter(app => app._id !== applicationId));
       } else {
         const errorData = await response.json();
-        alert(errorData.error || `Failed to ${action} application`);
+    showToast.success(`Application ${action}ed successfully!`);
       }
     } catch (error) {
       console.error('Error processing application:', error);
-      alert('Error processing application. Please try again.');
+    showToast.error(errorData.error || `Failed to ${action} application`);
     } finally {
       setProcessing(null);
     }

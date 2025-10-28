@@ -2,6 +2,7 @@
 'use client';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
+import { showToast } from '@/lib/toast';
 
 export default function UsersPage() {
   const { data: session } = useSession();
@@ -45,6 +46,8 @@ const updateUserRole = async (userId, newRole) => {
       setUsers(users.map(user => 
         user._id === userId ? { ...user, role: newRole } : user
       ));
+          showToast.success('User role updated successfully!');
+
     }
   } catch (error) {
     console.error('Error updating user role:', error);

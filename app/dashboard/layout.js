@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import Navbar from '@/components/Navbar';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function DashboardLayout({ children }) {
     const { data: session, status } = useSession();
@@ -34,21 +35,24 @@ export default function DashboardLayout({ children }) {
     const toggleSidebar = () => {
         setIsSidebarCollapsed(!isSidebarCollapsed);
     };
-return (
-  <div className="min-h-screen bg-gray-50 flex flex-col">
-    <Navbar />
-    <div className="flex flex-1 pt-24 h-screen overflow-hidden">
-      <DashboardSidebar
-        isCollapsed={isSidebarCollapsed}
-        toggleSidebar={toggleSidebar}
-      />
-      <main className={`flex-1 transition-all duration-300 ${
-        isSidebarCollapsed ? 'ml-20' : 'ml-64'
-      } overflow-y-auto`}>
-        <div className="p-6">
-          {children}
+
+    return (
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+            <Navbar />
+            <div className="flex flex-1 pt-24 h-screen overflow-hidden">
+                <DashboardSidebar
+                    isCollapsed={isSidebarCollapsed}
+                    toggleSidebar={toggleSidebar}
+                />
+                <main className={`flex-1 transition-all duration-300 ${
+                    isSidebarCollapsed ? 'ml-20' : 'ml-64'
+                } overflow-y-auto`}>
+                    <div className="p-6">
+                        {children}
+                    </div>
+                </main>
+            </div>
+
         </div>
-      </main>
-    </div>
-  </div>
-);}
+    );
+}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { FaStar, FaRegStar, FaUserCircle } from "react-icons/fa";
+import { showToast } from '@/lib/toast';
 
 export default function ReviewsPage() {
   const [reviewableOrders, setReviewableOrders] = useState([]);
@@ -125,14 +126,14 @@ export default function ReviewsPage() {
         // Refresh both lists
         fetchReviewableOrders();
         fetchUserReviews();
-        alert('Review submitted successfully!');
+    showToast.success('Review submitted successfully!');
       } else {
         const errorData = await response.json();
         alert(errorData.error || 'Failed to submit review');
       }
     } catch (error) {
       console.error('Error submitting review:', error);
-      alert('Error submitting review');
+    showToast.error(errorData.error || 'Failed to submit review');
     } finally {
       setSubmitting(null);
     }

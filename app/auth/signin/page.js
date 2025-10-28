@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import Navbar from '@/components/Navbar';
 import Image from "next/image";
+import { showToast } from '@/lib/toast';
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -33,7 +34,7 @@ export default function AuthPage() {
 
     if (isSignUp) {
       if (password !== confirmPassword) {
-        setError(t.passwordsDontMatch || "Passwords don't match");
+        showToast.error(t.passwordsDontMatch || "Passwords don't match");
         setLoading(false);
         return;
       }
@@ -93,10 +94,14 @@ export default function AuthPage() {
           password: password
         });
 
-        if (result.error) {
-          setError(t.signinAfterSignupFailed || 'Signup successful! Please sign in');
+        if (result?.error) {
+          showToast.error(t.invalidCredentials || 'Invalid email or password');
+          setError(''); // Clear any state error to avoid duplicates
         } else {
-          router.push('/dashboard');
+          showToast.success(t.signUpSuccess || 'Account created successfully!');
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 1500);
         }
       } catch (err) {
         console.error('Signup error:', err);
@@ -111,9 +116,12 @@ export default function AuthPage() {
       });
 
       if (result.error) {
-        setError(t.invalidCredentials || 'Invalid email or password');
+        showToast.error(t.invalidCredentials || 'Invalid email or password');
       } else {
-        router.push('/dashboard');
+        showToast.success(t.signInSuccess || 'Signed in successfully!');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1500);
       }
     }
 
@@ -156,12 +164,15 @@ export default function AuthPage() {
         });
 
         if (result.error) {
-          setError('Verification successful! Please sign in.');
+          showToast.success('Verification successful! Please sign in.');
         } else {
-          router.push('/dashboard');
+          showToast.success('Verification successful! Welcome to your dashboard.');
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 1500);
         }
       } else {
-        setError(data.error || 'Verification failed');
+        showToast.error(data.error || 'Verification failed');
       }
     } catch (err) {
       setError('Network error during verification');
@@ -190,10 +201,10 @@ export default function AuthPage() {
       <div className="flex-grow flex items-center justify-center">
         <div className="p-8 rounded-lg shadow-md w-full max-w-md bg-gray-100">
           <h2 className="text-black text-2xl font-bold mb-6 text-center">
-            {verificationMode 
-              ? 'Verify Your Email' 
-              : isSignUp 
-                ? (t.signUp || 'Sign Up') 
+            {verificationMode
+              ? 'Verify Your Email'
+              : isSignUp
+                ? (t.signUp || 'Sign Up')
                 : (t.signIn || 'Sign In')
             }
           </h2>
@@ -332,9 +343,8 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full bg-[#D22E26] text-white py-2 px-4 rounded-lg hover:bg-[#2d4360] transition duration-200 cursor-pointer mb-4 ${
-                  loading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                className={`w-full bg-[#D22E26] text-white py-2 px-4 rounded-lg hover:bg-[#2d4360] transition duration-200 cursor-pointer mb-4 ${loading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
               >
                 {loading ? (
                   t.loading || 'Processing...'

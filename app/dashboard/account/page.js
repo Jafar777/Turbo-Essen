@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { CldUploadWidget } from 'next-cloudinary';
 import Image from 'next/image';
+import { showToast } from '@/lib/toast';
 
 export default function AccountPage() {
   const { data: session, update } = useSession();
@@ -53,10 +54,14 @@ export default function AccountPage() {
 
       if (response.ok) {
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
+            showToast.success('Profile updated successfully!');
+
         // Update session to reflect changes immediately
         await update();
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to update profile' });
+            showToast.error(data.error || 'Failed to update profile');
+
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Network error occurred' });
@@ -72,6 +77,8 @@ export default function AccountPage() {
         image: result.info.secure_url
       }));
       setMessage({ type: 'success', text: 'Image uploaded successfully!' });
+          showToast.success('Image uploaded successfully!');
+
     }
   };
 

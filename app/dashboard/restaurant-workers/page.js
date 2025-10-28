@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { showToast } from '@/lib/toast';
 
 export default function RestaurantWorkersPage() {
   const { data: session, status } = useSession();
@@ -95,13 +96,13 @@ export default function RestaurantWorkersPage() {
 
       if (response.ok) {
         const result = await response.json();
-        alert('Job offer sent successfully!');
+    showToast.success('Job offer sent successfully!');
         setFormData({ email: '', role: 'chef', message: '' });
         fetchSentOffers();
         setActiveTab('sent-offers');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to send job offer');
+    showToast.error(error.error || 'Failed to send job offer');
       }
     } catch (error) {
       console.error('Error sending job offer:', error);
@@ -119,13 +120,13 @@ export default function RestaurantWorkersPage() {
 
       if (response.ok) {
         fetchSentOffers();
-        alert('Job offer withdrawn successfully');
+    showToast.success('Job offer withdrawn successfully');
       } else {
         alert('Failed to withdraw job offer');
       }
     } catch (error) {
       console.error('Error withdrawing job offer:', error);
-      alert('Failed to withdraw job offer');
+    showToast.error('Failed to withdraw job offer');
     }
   };
 
@@ -145,11 +146,11 @@ export default function RestaurantWorkersPage() {
 
       if (response.ok) {
         const result = await response.json();
-        alert(result.message || 'Employee role updated successfully');
+    showToast.success(result.message || 'Employee role updated successfully');
         fetchEmployees(); // Refresh the employees list
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to update employee role');
+    showToast.error(error.error || 'Failed to update employee role');
       }
     } catch (error) {
       console.error('Error updating employee role:', error);

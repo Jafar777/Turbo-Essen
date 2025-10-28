@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { showToast } from '@/lib/toast';
 
 // Dynamically import the map component to avoid SSR issues
 const DeliveryMap = dynamic(() => import('@/components/DeliveryMap'), {
@@ -155,12 +156,12 @@ export default function CartPage() {
     
     // Validate dine-in order
     if (selectedOrderType === 'dine_in' && !tableNumber) {
-      alert('Please enter a table number for dine-in orders');
+    showToast.warning('Please enter a table number for dine-in orders');
       return;
     }
 
     if (selectedOrderType === 'dine_in' && (isNaN(tableNumber) || tableNumber < 1)) {
-      alert('Please enter a valid table number');
+    showToast.warning('Please set your delivery location on the map');
       return;
     }
 
@@ -217,13 +218,13 @@ export default function CartPage() {
         window.dispatchEvent(new CustomEvent('cartUpdated'));
         
         // Show success message
-        alert('Order placed successfully! You can track your order in the Orders section.');
+    showToast.success('Order placed successfully! You can track your order in the Orders section.');
         
         // Optionally redirect to orders page
         // router.push('/dashboard/orders');
       } else {
         const errorData = await response.json();
-        alert(errorData.error || 'Failed to place order');
+    showToast.error(errorData.error || 'Failed to place order');
       }
     } catch (error) {
       console.error('Error placing order:', error);
