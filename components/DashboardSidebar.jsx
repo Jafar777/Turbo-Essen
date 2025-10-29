@@ -16,7 +16,7 @@ import { IoNotifications } from 'react-icons/io5';
 import { MdOutlineAddBusiness } from "react-icons/md"; 
 import { IoDocuments } from "react-icons/io5";
 import { FaUsersBetweenLines } from "react-icons/fa6";
-
+import { IoQrCode } from "react-icons/io5";
 
 const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
   const pathname = usePathname();
@@ -26,8 +26,7 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
     { href: '/dashboard', label: 'Home', icon: FaHome, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
     { href: '/dashboard/users', label: 'Users', icon: HiMiniUsers, roles: ['admin'] },
     { href: '/dashboard/account', label: 'User Settings', icon: MdManageAccounts, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
-       // Add the new menu item here - visible to 'user' role only
-      { href: '/dashboard/applications', label: 'Restaurant Applications', icon: IoDocuments, roles: ['admin'] },
+    { href: '/dashboard/applications', label: 'Restaurant Applications', icon: IoDocuments, roles: ['admin'] },
     { href: '/dashboard/restaurant', label: 'Restaurant Management', icon: IoRestaurantSharp, roles: ['restaurant_owner'] },
     { href: '/dashboard/restaurants-management', label: 'Restaurants Management', icon: IoRestaurantSharp, roles: ['admin'] },
     { href: '/dashboard/cart', label: 'Cart', icon: FaCartShopping, roles: [ 'user'] },
@@ -38,9 +37,10 @@ const DashboardSidebar = ({ isCollapsed, toggleSidebar }) => {
     { href: '/dashboard/notifications', label: 'Notifications', icon: IoNotifications, roles: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'] },
     { href: '/dashboard/restaurant-workers', label: 'Restaurant Workers', icon: FaUsersBetweenLines, roles: ['restaurant_owner'] },
     { href: '/dashboard/chef-orders', label: 'Chef Orders', icon: IoRestaurantSharp, roles: ['chef'] },
-      { href: '/dashboard/waiter', label: 'Waiter Dashboard', icon: FaUsersBetweenLines, roles: ['waiter'] },
+    { href: '/dashboard/waiter', label: 'Waiter Dashboard', icon: FaUsersBetweenLines, roles: ['waiter'] },
     { href: '/dashboard/apply-restaurant', label: 'Apply as a Restaurant', icon: MdOutlineAddBusiness, roles: ['user'] },
-
+    // Add QR Code menu item for restaurant owners
+    { href: '/dashboard/restaurant-qr', label: 'QR Code', icon: IoQrCode, roles: ['restaurant_owner'] },
   ];
 
   const menuItems = allMenuItems.filter(item => 
