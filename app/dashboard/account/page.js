@@ -14,8 +14,18 @@ export default function AccountPage() {
     email: '',
     image: ''
   });
+  
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  
   const [loading, setLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
     if (session?.user) {
@@ -31,6 +41,14 @@ export default function AccountPage() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setUserData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
       ...prev,
       [name]: value
     }));
@@ -54,19 +72,55 @@ export default function AccountPage() {
 
       if (response.ok) {
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
-            showToast.success('Profile updated successfully!');
+        showToast.success('Profile updated successfully!');
 
         // Update session to reflect changes immediately
         await update();
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to update profile' });
-            showToast.error(data.error || 'Failed to update profile');
-
+        showToast.error(data.error || 'Failed to update profile');
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Network error occurred' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    setPasswordLoading(true);
+    setPasswordMessage({ type: '', text: '' });
+
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(passwordData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setPasswordMessage({ type: 'success', text: 'Password updated successfully!' });
+        showToast.success('Password updated successfully!');
+        
+        // Clear password fields
+        setPasswordData({
+          oldPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+      } else {
+        setPasswordMessage({ type: 'error', text: data.error || 'Failed to update password' });
+        showToast.error(data.error || 'Failed to update password');
+      }
+    } catch (error) {
+      setPasswordMessage({ type: 'error', text: 'Network error occurred' });
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -77,8 +131,7 @@ export default function AccountPage() {
         image: result.info.secure_url
       }));
       setMessage({ type: 'success', text: 'Image uploaded successfully!' });
-          showToast.success('Image uploaded successfully!');
-
+      showToast.success('Image uploaded successfully!');
     }
   };
 
@@ -252,6 +305,100 @@ export default function AccountPage() {
               </button>
             </div>
           </form>
+
+          {/* Password Change Section */}
+          <div className="mt-12 pt-8 border-t border-amber-100">
+            <h3 className="text-xl font-semibold text-gray-800 border-b border-amber-100 pb-2 mb-6">
+              Change Password
+            </h3>
+
+            {passwordMessage.text && (
+              <div className={`mb-6 p-4 rounded-lg ${
+                passwordMessage.type === 'success' 
+                  ? 'bg-green-50 text-green-800 border border-green-200' 
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}>
+                {passwordMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordUpdate} className="space-y-6">
+              <div>
+                <label htmlFor="oldPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  id="oldPassword"
+                  name="oldPassword"
+                  value={passwordData.oldPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors bg-amber-50/30"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    id="newPassword"
+                    name="newPassword"
+                    value={passwordData.newPassword}
+                    onChange={handlePasswordChange}
+                    className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors bg-amber-50/30"
+                    required
+                    minLength={6}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                </div>
+
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={passwordData.confirmPassword}
+                    onChange={handlePasswordChange}
+                    className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors bg-amber-50/30"
+                    required
+                    minLength={6}
+                  />
+                  {passwordData.newPassword && passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                    <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <button
+                  type="submit"
+                  disabled={passwordLoading || (passwordData.newPassword && passwordData.newPassword !== passwordData.confirmPassword)}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600  text-white font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {passwordLoading ? 'Updating Password...' : 'Update Password'}
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setPasswordData({
+                    oldPassword: '',
+                    newPassword: '',
+                    confirmPassword: ''
+                  })}
+                  className="flex-1 px-6 py-3 border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium rounded-lg transition-colors duration-200"
+                >
+                  Clear Password Fields
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
