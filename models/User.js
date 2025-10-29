@@ -42,19 +42,27 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: null
   },
-isVerified: {
-  type: Boolean,
-  default: false
-},
-verificationCode: {
-  type: String,
-  select: false
-},
-verificationCodeExpires: {
-  type: Date,
-  select: false
-}
-
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  verificationCode: {
+    type: String,
+    select: false
+  },
+  verificationCodeExpires: {
+    type: Date,
+    select: false
+  },
+  // Add password reset fields
+  resetPasswordCode: {
+    type: String,
+    select: false
+  },
+  resetPasswordCodeExpires: {
+    type: Date,
+    select: false
+  }
 }, {
   timestamps: true
 });
