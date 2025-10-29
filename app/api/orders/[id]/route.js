@@ -4,8 +4,9 @@ import { getServerSession } from 'next-auth/next';
 import authOptions from '@/lib/authOptions';
 import dbConnect from '@/lib/dbConnect';
 import Order from '@/models/Order';
-import Restaurant from '@/models/Restaurant'; // Add this import
-import User from '@/models/User'; // Add this import
+import Restaurant from '@/models/Restaurant';
+import User from '@/models/User';
+import { sendOrderStatusEmail } from '@/lib/order-email-notifications';
 
 // PUT: Update order status
 export async function PUT(request, { params }) {
@@ -45,6 +46,9 @@ export async function PUT(request, { params }) {
       );
     }
 
+    // Store the old status for comparison
+    const oldStatus = order.status;
+
     // Check permissions based on role
     if (session.user.role === 'restaurant_owner') {
       // Find the restaurant owned by this user
@@ -81,8 +85,42 @@ export async function PUT(request, { params }) {
       );
     }
 
+    // Update the order status
     order.status = status;
     await order.save();
+
+    // Send email notifications for specific status changes
+    if (oldStatus !== status) {
+  try {
+    // Get user details for email
+    const user = await User.findById(order.userId).select('firstName email');
+    
+    if (user && ['accepted', 'on_the_way', 'delivered'].includes(status)) {
+      // Convert the order to a plain JavaScript object for email function
+      const orderForEmail = {
+        _id: order._id.toString(), // Convert to string
+        restaurantName: order.restaurantName,
+        total: order.total
+      };
+      
+      // Send email notification (don't await to avoid blocking the response)
+      sendOrderStatusEmail(user.email, orderForEmail, status, user.firstName)
+        .then(sent => {
+          if (sent) {
+            console.log(`Order status email sent for order ${order._id}, status: ${status}`);
+          } else {
+            console.error(`Failed to send order status email for order ${order._id}`);
+          }
+        })
+        .catch(emailError => {
+          console.error('Error in email sending:', emailError);
+        });
+    }
+  } catch (emailError) {
+    console.error('Error preparing to send email:', emailError);
+    // Don't fail the request if email fails
+  }
+}
 
     return NextResponse.json({ 
       success: true, 

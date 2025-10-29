@@ -23,50 +23,57 @@ export default function RestaurantOrdersPage() {
     fetchOrders();
   }, [session, status, router]);
 
-// Add this console log in the fetchOrders function
-const fetchOrders = async () => {
-  try {
-    console.log('Fetching orders for restaurant owner...');
-    const response = await fetch('/api/orders');
-    if (response.ok) {
-      const data = await response.json();
-      console.log('Orders API response:', data);
-      setOrders(data.orders || []);
-    } else {
-      console.error('Failed to fetch orders, status:', response.status);
-      const errorData = await response.json();
-      console.error('Error details:', errorData);
-    }
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const updateOrderStatus = async (orderId, newStatus) => {
-    setUpdating(orderId);
+  // Add this console log in the fetchOrders function
+  const fetchOrders = async () => {
     try {
-      const response = await fetch(`/api/orders/${orderId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
+      console.log('Fetching orders for restaurant owner...');
+      const response = await fetch('/api/orders');
       if (response.ok) {
-        fetchOrders(); // Refresh orders
+        const data = await response.json();
+        console.log('Orders API response:', data);
+        setOrders(data.orders || []);
       } else {
-    showToast.error('Failed to update order status');
+        console.error('Failed to fetch orders, status:', response.status);
+        const errorData = await response.json();
+        console.error('Error details:', errorData);
       }
     } catch (error) {
-      console.error('Error updating order:', error);
-      alert('Error updating order status');
+      console.error('Error fetching orders:', error);
     } finally {
-      setUpdating(null);
+      setLoading(false);
     }
   };
+
+
+// In the updateOrderStatus function, add toast notifications
+const updateOrderStatus = async (orderId, newStatus) => {
+  // Allow restaurant owners and delivery persons to update status
+  if (session.user.role !== 'restaurant_owner' && session.user.role !== 'delivery') return;
+  
+  setUpdating(orderId);
+  try {
+    const response = await fetch(`/api/orders/${orderId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status: newStatus }),
+    });
+
+    if (response.ok) {
+      showToast.success(`Order status updated to ${getStatusText(newStatus)}`);
+      fetchOrders();
+    } else {
+      const errorData = await response.json();
+      showToast.error(errorData.error || 'Failed to update order status');
+    }
+  } catch (error) {
+    console.error('Error updating order:', error);
+    showToast.error('Error updating order status');
+  } finally {
+    setUpdating(null);
+  }
+};
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -157,7 +164,7 @@ const fetchOrders = async () => {
           <div className="space-y-6">
             {orders.map((order) => {
               const nextStatuses = getNextStatus(order.status);
-              
+
               return (
                 <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4">
@@ -176,7 +183,7 @@ const fetchOrders = async () => {
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
                         {getStatusText(order.status)}
                       </span>
-                      
+
                       {/* Status Update Buttons */}
                       {nextStatuses.length > 0 && (
                         <div className="flex gap-2">
@@ -185,11 +192,10 @@ const fetchOrders = async () => {
                               key={status}
                               onClick={() => updateOrderStatus(order._id, status)}
                               disabled={updating === order._id}
-                              className={`px-3 py-1 text-sm font-medium rounded-lg transition-colors ${
-                                status === 'rejected' 
-                                  ? 'bg-red-500 text-white hover:bg-red-600' 
-                                  : 'bg-amber-500 text-white hover:bg-amber-600'
-                              } disabled:opacity-50`}
+                              className={`px-3 py-1 text-sm font-medium rounded-lg transition-colors ${status === 'rejected'
+                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                : 'bg-amber-500 text-white hover:bg-amber-600'
+                                } disabled:opacity-50`}
                             >
                               {updating === order._id ? '...' : getStatusText(status)}
                             </button>
