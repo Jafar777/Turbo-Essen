@@ -171,7 +171,7 @@ export default function ForgotPasswordPage() {
             <form onSubmit={handleSendResetCode}>
               <div className="mb-6">
                 <p className="text-black mb-4 text-center">
-                  Enter your email address and we'll send you a verification code to reset your password.
+                  Enter your email address and well send you a verification code to reset your password.
                 </p>
                 <label className="block text-black mb-2" htmlFor="email">
                   Email Address
