@@ -1,9 +1,107 @@
 // components/RestaurantCard.jsx
 import Link from 'next/link';
-import { FiStar, FiMapPin, FiPhone } from 'react-icons/fi';
+import { FiStar, FiMapPin, FiClock } from 'react-icons/fi';
 
 export default function RestaurantCard({ restaurant }) {
-  // Use only the slug, remove the fallback to ID
+  // Format time to 12-hour format
+  const formatTime = (time) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    if (isNaN(hour)) return '';
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12;
+    return `${formattedHour}:${minutes} ${ampm}`;
+  };
+
+  // Improved time parsing function
+  const parseTimeToMinutes = (timeString, fallback = '00:00') => {
+    if (!timeString || typeof timeString !== 'string') {
+      timeString = fallback;
+    }
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return isNaN(hours) || isNaN(minutes) ? 0 : (hours * 60 + minutes);
+  };
+
+  // Get today's opening hours with safe defaults
+  const getTodaysHours = () => {
+    // Use restaurant's openingHours if available
+    const openingHours = restaurant?.openingHours;
+    
+    if (!openingHours) {
+      return { status: 'closed', text: 'Hours not available' };
+    }
+    
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const today = new Date().getDay();
+    const todayKey = days[today];
+    const todayHours = openingHours[todayKey];
+    
+    // If no hours for today or restaurant is closed, return closed
+    if (!todayHours || todayHours.closed) {
+      return { status: 'closed', text: 'Closed today' };
+    }
+    
+    // Use actual restaurant hours from database
+    const openTime = todayHours.open;
+    const closeTime = todayHours.close;
+    
+    // Validate that we have both open and close times
+    if (!openTime || !closeTime) {
+      return { status: 'unknown', text: 'Hours not set' };
+    }
+    
+    return {
+      status: 'open',
+      text: `${formatTime(openTime)} - ${formatTime(closeTime)}`,
+      open: openTime,
+      close: closeTime
+    };
+  };
+
+  const isCurrentlyOpen = () => {
+    // First check manual override (isOpen field)
+    if (restaurant?.isOpen === false) return false;
+    
+    const hours = getTodaysHours();
+    if (!hours || hours.status !== 'open') return false;
+    
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    // Use safe time parsing
+    const openTimeInMinutes = parseTimeToMinutes(hours.open);
+    const closeTimeInMinutes = parseTimeToMinutes(hours.close);
+    
+    // Handle closing times that cross midnight (like 00:00, 01:00, etc.)
+    if (closeTimeInMinutes < openTimeInMinutes) {
+      // Closing time is after midnight, so we need special logic
+      // Restaurant is open if:
+      // - current time is after opening time (evening) OR
+      // - current time is before closing time (next day morning)
+      return currentTime >= openTimeInMinutes || currentTime < closeTimeInMinutes;
+    }
+    
+    // Normal case: closing time is on the same day
+    return currentTime >= openTimeInMinutes && currentTime <= closeTimeInMinutes;
+  };
+
+  const todaysHours = getTodaysHours();
+  const isOpen = isCurrentlyOpen();
+  const averageRating = restaurant?.averageRating || 0;
+  const totalReviews = restaurant?.totalReviews || 0;
+
+  // If restaurant data is not available yet, show loading
+  if (!restaurant) {
+    return (
+      <div className="group bg-white rounded-2xl shadow-lg border border-gray-100 p-6 animate-pulse">
+        <div className="h-48 bg-gray-200 rounded-lg mb-4"></div>
+        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+        <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+      </div>
+    );
+  }
+
   return (
     <Link href={`/restaurants/${restaurant.slug}`}>
       <div className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 hover:border-amber-200 transform hover:-translate-y-1">
@@ -27,15 +125,26 @@ export default function RestaurantCard({ restaurant }) {
             </div>
           )}
           
+          {/* Status Badge */}
+          <div className="absolute top-3 left-3">
+            <div className={`px-3 py-1 rounded-full text-sm font-semibold backdrop-blur-sm ${
+              isOpen 
+                ? 'bg-green-500/90 text-white' 
+                : 'bg-red-500/90 text-white'
+            }`}>
+              {isOpen ? 'Open Now' : 'Closed'}
+            </div>
+          </div>
+          
           {/* Rating Badge */}
-          {restaurant.averageRating > 0 && (
+          {averageRating > 0 && (
             <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1">
               <FiStar className="w-4 h-4 text-amber-500 fill-amber-500" />
               <span className="text-sm font-semibold text-gray-900">
-                {restaurant.averageRating.toFixed(1)}
+                {averageRating.toFixed(1)}
               </span>
               <span className="text-xs text-gray-500">
-                ({restaurant.totalReviews || 0})
+                ({totalReviews})
               </span>
             </div>
           )}
@@ -83,14 +192,14 @@ export default function RestaurantCard({ restaurant }) {
                 <FiStar
                   key={star}
                   className={`w-4 h-4 ${
-                    star <= Math.round(restaurant.averageRating)
+                    star <= Math.round(averageRating)
                       ? 'text-amber-500 fill-amber-500'
                       : 'text-gray-300'
                   }`}
                 />
               ))}
               <span className="text-sm text-gray-600 ml-1">
-                ({restaurant.totalReviews || 0} reviews)
+                ({totalReviews} reviews)
               </span>
             </div>
           </div>
@@ -101,19 +210,17 @@ export default function RestaurantCard({ restaurant }) {
             </p>
           )}
           
-          {/* Contact Info */}
-          <div className="space-y-2">
+          {/* Opening Hours Info */}
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center justify-center text-gray-700 text-sm font-medium">
+              <FiClock className="w-4 h-4 mr-1.5 text-amber-500" />
+              <span>{todaysHours.text}</span>
+            </div>
+            
             {restaurant.address && (
               <div className="flex items-center justify-center text-gray-500 text-sm">
                 <FiMapPin className="w-4 h-4 mr-1.5 text-amber-500" />
                 <span className="truncate">{restaurant.address}</span>
-              </div>
-            )}
-            
-            {restaurant.phone && (
-              <div className="flex items-center justify-center text-gray-500 text-sm">
-                <FiPhone className="w-4 h-4 mr-1.5 text-amber-500" />
-                <span>{restaurant.phone}</span>
               </div>
             )}
           </div>

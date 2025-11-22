@@ -26,6 +26,21 @@ const RestaurantSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Add sudden close functionality
+  isOpen: {
+    type: Boolean,
+    default: true
+  },
+  // Add opening hours
+  openingHours: {
+    monday: { open: String, close: String, closed: { type: Boolean, default: false } },
+    tuesday: { open: String, close: String, closed: { type: Boolean, default: false } },
+    wednesday: { open: String, close: String, closed: { type: Boolean, default: false } },
+    thursday: { open: String, close: String, closed: { type: Boolean, default: false } },
+    friday: { open: String, close: String, closed: { type: Boolean, default: false } },
+    saturday: { open: String, close: String, closed: { type: Boolean, default: false } },
+    sunday: { open: String, close: String, closed: { type: Boolean, default: false } }
+  },
   // Add table management fields
   totalTables: {
     type: Number,

@@ -3,54 +3,44 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Restaurant from '@/models/Restaurant';
 
-export async function GET(request) {
+export async function GET() {
   try {
     await dbConnect();
+    
+    // Fetch restaurants from your database - include openingHours and isOpen
+    const restaurants = await Restaurant.find({ isActive: true })
+      .select('name description address phone cuisineType avatar banner openingHours isOpen averageRating totalReviews slug totalTables availableTables createdAt')
+      .sort({ createdAt: -1 });
 
-    const { searchParams } = new URL(request.url);
-    const cuisineType = searchParams.get('cuisineType');
-    const searchQuery = searchParams.get('search');
-    const minRating = searchParams.get('minRating');
+    // Extract unique cuisine types
+    const cuisineTypes = [...new Set(restaurants.map(r => r.cuisineType).filter(Boolean))];
 
-    let filter = { isActive: true };
-
-    // Filter by cuisine type
-    if (cuisineType && cuisineType !== 'all') {
-      filter.cuisineType = cuisineType;
-    }
-
-    // Filter by search query - NOW INCLUDES ADDRESS
-    if (searchQuery) {
-      filter.$or = [
-        { name: { $regex: searchQuery, $options: 'i' } },
-        { description: { $regex: searchQuery, $options: 'i' } },
-        { cuisineType: { $regex: searchQuery, $options: 'i' } },
-        { address: { $regex: searchQuery, $options: 'i' } } // ADDED THIS LINE
-      ];
-    }
-
-    // Filter by minimum rating
-    if (minRating) {
-      filter.averageRating = { $gte: parseFloat(minRating) };
-    }
-
-    const restaurants = await Restaurant.find(filter)
-      .select('name description address phone cuisineType avatar banner averageRating totalReviews totalTables availableTables slug') // ADD slug here
-      .sort({ averageRating: -1, totalReviews: -1 });
-
-    // Get unique cuisine types for filters
-    const cuisineTypes = await Restaurant.distinct('cuisineType', { isActive: true });
-
-    return NextResponse.json({
-      success: true,
-      restaurants,
-      cuisineTypes: cuisineTypes.filter(Boolean).sort() // Remove null/empty and sort
+    return NextResponse.json({ 
+      success: true, 
+      restaurants: restaurants.map(r => ({
+        _id: r._id.toString(),
+        name: r.name,
+        description: r.description,
+        address: r.address,
+        phone: r.phone,
+        cuisineType: r.cuisineType,
+        avatar: r.avatar,
+        banner: r.banner,
+        openingHours: r.openingHours, // ← THIS IS MISSING IN YOUR CURRENT API
+        isOpen: r.isOpen, // ← THIS IS MISSING IN YOUR CURRENT API
+        averageRating: r.averageRating,
+        totalReviews: r.totalReviews,
+        slug: r.slug,
+        totalTables: r.totalTables,
+        availableTables: r.availableTables,
+        createdAt: r.createdAt
+      })),
+      cuisineTypes
     });
-
   } catch (error) {
     console.error('Error fetching restaurants:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch restaurants' },
+      { success: false, error: 'Failed to fetch restaurants' },
       { status: 500 }
     );
   }

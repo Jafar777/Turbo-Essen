@@ -52,25 +52,25 @@ const fetchRestaurant = async () => {
         try {
             const restaurantUrl = `${window.location.origin}/restaurants/${restaurant.slug}`;
 
-            // Generate QR code as data URL
+            // Generate QR code as data URL - CHANGED TO BLACK
             const url = await QRCode.toDataURL(restaurantUrl, {
                 width: 400,
                 margin: 2,
                 color: {
-                    dark: '#ce5a46',
+                    dark: '#000000', // Changed from '#ce5a46' to black
                     light: '#FFFFFF'
                 }
             });
 
             setQrCodeUrl(url);
 
-            // Also generate for canvas (for download)
+            // Also generate for canvas (for download) - CHANGED TO BLACK
             if (canvasRef.current) {
                 await QRCode.toCanvas(canvasRef.current, restaurantUrl, {
                     width: 400,
                     margin: 2,
                     color: {
-                        dark: '#ce5a46',
+                        dark: '#000000', // Changed from '#ce5a46' to black
                         light: '#FFFFFF'
                     }
                 });
@@ -123,7 +123,7 @@ const fetchRestaurant = async () => {
             }
             .url {
               margin: 10px 0;
-              color: #ce5a46;
+              color: #000000; /* Changed to black */
               font-weight: bold;
               word-break: break-all;
             }
@@ -201,7 +201,7 @@ const fetchRestaurant = async () => {
                         <div className="p-6 border-b border-gray-200">
                             <h2 className="text-xl font-semibold text-gray-900 mb-2">{restaurant.name}</h2>
                             <p className="text-gray-600">
-                                Your restaurant URL: <span className="text-amber-600 font-medium">{window.location.origin}/restaurants/{restaurant.slug}</span>
+                                Your restaurant URL: <span className="text-black font-medium">{window.location.origin}/restaurants/{restaurant.slug}</span>
                             </p>
                         </div>
 
@@ -244,7 +244,7 @@ const fetchRestaurant = async () => {
                                     <div className="space-y-6">
                                         {/* QR Code Display */}
                                         <div className="flex flex-col items-center">
-                                            <div className="bg-white p-6 rounded-lg border-2 border-amber-200 inline-block">
+                                            <div className="bg-white p-6 rounded-lg border-2 border-gray-200 inline-block"> {/* Changed border color to gray */}
                                                 <img
                                                     src={qrCodeUrl}
                                                     alt="QR Code"

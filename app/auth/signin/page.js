@@ -345,7 +345,7 @@ export default function AuthPage() {
                 disabled={loading}
                 className={`w-full bg-[#D22E26] text-white py-2 px-4 rounded-lg hover:bg-[#2d4360] transition duration-200 cursor-pointer mb-4 ${loading ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
-              >
+              >              
                 {loading ? (
                   t.loading || 'Processing...'
                 ) : isSignUp ? (

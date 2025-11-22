@@ -13,7 +13,7 @@ export default function ReviewsPage() {
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(null);
-  const [activeTab, setActiveTab] = useState('write'); // 'write' or 'my-reviews' for users, 'all-reviews' for owners
+  const [activeTab, setActiveTab] = useState('write');
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -41,7 +41,6 @@ export default function ReviewsPage() {
     }
   }, [session, status, router, isUser, isRestaurantOwner]);
 
-  // User functions
   const fetchReviewableOrders = async () => {
     try {
       const response = await fetch('/api/reviews/reviewable-orders');
@@ -68,22 +67,18 @@ export default function ReviewsPage() {
     }
   };
 
-  // Restaurant owner functions
   const fetchRestaurantAndReviews = async () => {
     try {
-      // First, get the restaurant owned by this user
       const restaurantResponse = await fetch('/api/restaurants/my-restaurant');
       if (restaurantResponse.ok) {
         const restaurantData = await restaurantResponse.json();
         if (restaurantData.restaurant) {
           setRestaurant(restaurantData.restaurant);
-          // Then fetch reviews for this restaurant
           await fetchRestaurantReviews(restaurantData.restaurant._id);
         } else {
           setLoading(false);
         }
       } else {
-        console.error('Failed to fetch restaurant');
         setLoading(false);
       }
     } catch (error) {
@@ -123,23 +118,24 @@ export default function ReviewsPage() {
       });
 
       if (response.ok) {
-        // Refresh both lists
         fetchReviewableOrders();
         fetchUserReviews();
-    showToast.success('Review submitted successfully!');
+        showToast.success('Review submitted successfully!');
       } else {
         const errorData = await response.json();
-        alert(errorData.error || 'Failed to submit review');
+        showToast.error(errorData.error || 'Failed to submit review');
       }
     } catch (error) {
       console.error('Error submitting review:', error);
-    showToast.error(errorData.error || 'Failed to submit review');
+      showToast.error('Failed to submit review');
     } finally {
       setSubmitting(null);
     }
   };
 
-  const StarRating = ({ rating, setRating, disabled = false }) => {
+  const StarRating = ({ rating, setRating, disabled = false, size = 'md' }) => {
+    const starSize = size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-10 h-10' : 'w-6 h-6';
+    
     return (
       <div className="flex space-x-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -151,9 +147,9 @@ export default function ReviewsPage() {
             className={`${disabled ? 'cursor-default' : 'cursor-pointer hover:scale-110'} transition-transform`}
           >
             {star <= rating ? (
-              <FaStar className="w-6 h-6 text-amber-500" />
+              <FaStar className={`${starSize} text-amber-500`} />
             ) : (
-              <FaRegStar className="w-6 h-6 text-amber-500" />
+              <FaRegStar className={`${starSize} text-amber-500`} />
             )}
           </button>
         ))}
@@ -163,7 +159,7 @@ export default function ReviewsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-gray-50 py-6 md:py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
@@ -192,98 +188,100 @@ export default function ReviewsPage() {
   // Restaurant Owner View
   if (isRestaurantOwner) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 py-6 md:py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Customer Reviews</h1>
-            <p className="text-gray-600 mt-2">
-              See what customers are saying about {restaurant?.name || 'your restaurant'}
+          <div className="mb-6 md:mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Customer Reviews</h1>
+            <p className="text-gray-600 mt-1 md:mt-2">
+              Customer feedback for {restaurant?.name || 'your restaurant'}
             </p>
-            
-            {/* Restaurant Rating Summary */}
-            {restaurant && (
-              <div className="mt-6 bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-6">
-                    <div className="text-center">
-                      <div className="text-4xl font-bold text-gray-900">
-                        {restaurant.averageRating?.toFixed(1) || '0.0'}
-                      </div>
+          </div>
+
+          {/* Rating Summary */}
+          {restaurant && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 mb-6 md:mb-8">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col md:flex-row md:items-center md:space-x-8 space-y-4 md:space-y-0">
+                  <div className="text-center">
+                    <div className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
+                      {restaurant.averageRating?.toFixed(1) || '0.0'}
+                    </div>
+                    <div className="flex justify-center">
                       <StarRating rating={Math.round(restaurant.averageRating) || 0} disabled={true} />
-                      <div className="text-sm text-gray-600 mt-2">
-                        {restaurant.totalReviews || 0} reviews
-                      </div>
                     </div>
-                    
-                    <div className="flex-1">
-                      {[5, 4, 3, 2, 1].map((star) => {
-                        const count = restaurant.ratingCount?.[star] || 0;
-                        const total = restaurant.totalReviews || 1;
-                        const percentage = (count / total) * 100;
-                        
-                        return (
-                          <div key={star} className="flex items-center space-x-3 mb-2">
-                            <span className="text-sm font-medium text-gray-600 w-8">
-                              {star}
-                            </span>
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-amber-500 h-2 rounded-full" 
-                                style={{ width: `${percentage}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-sm text-gray-600 w-12">
-                              {count}
-                            </span>
+                    <div className="text-sm text-gray-600 mt-2">
+                      {restaurant.totalReviews || 0} total reviews
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 md:min-w-[200px]">
+                    {[5, 4, 3, 2, 1].map((star) => {
+                      const count = restaurant.ratingCount?.[star] || 0;
+                      const total = restaurant.totalReviews || 1;
+                      const percentage = (count / total) * 100;
+                      
+                      return (
+                        <div key={star} className="flex items-center space-x-3 mb-2">
+                          <span className="text-sm font-medium text-gray-600 w-4">
+                            {star}
+                          </span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                            <div 
+                              className="bg-amber-500 h-2.5 rounded-full" 
+                              style={{ width: `${percentage}%` }}
+                            ></div>
                           </div>
-                        );
-                      })}
-                    </div>
+                          <span className="text-sm text-gray-600 w-8 text-right">
+                            {count}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Reviews List */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-4 md:p-6 border-b border-gray-200">
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">
                 All Reviews ({restaurantReviews.length})
               </h2>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 md:p-6">
               {restaurantReviews.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FaRegStar className="w-8 h-8 text-gray-400" />
+                <div className="text-center py-8 md:py-12">
+                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FaRegStar className="w-8 h-8 md:w-10 md:h-10 text-gray-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     No reviews yet
                   </h3>
                   <p className="text-gray-600">
-                    Customer reviews will appear here once they start reviewing your restaurant.
+                    Customer reviews will appear here once they start reviewing.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-4 md:space-y-6">
                   {restaurantReviews.map((review) => (
-                    <div key={review._id} className="border border-gray-200 rounded-lg p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center space-x-3">
+                    <div key={review._id} className="border border-gray-200 rounded-xl p-4 md:p-6 hover:shadow-sm transition-shadow">
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-3 md:mb-4">
+                        <div className="flex items-center space-x-3 md:space-x-4 mb-3 md:mb-0">
                           {review.userId?.image ? (
                             <img
                               src={review.userId.image}
                               alt={review.userId.firstName}
-                              className="w-10 h-10 rounded-full object-cover"
+                              className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover"
                             />
                           ) : (
-                            <FaUserCircle className="w-10 h-10 text-gray-400" />
+                            <FaUserCircle className="w-10 h-10 md:w-12 md:h-12 text-gray-400" />
                           )}
                           <div>
-                            <h3 className="font-semibold text-gray-900">
+                            <h3 className="font-semibold text-gray-900 md:text-lg">
                               {review.userId?.firstName} {review.userId?.lastName}
                             </h3>
                             <p className="text-sm text-gray-500">
@@ -298,7 +296,7 @@ export default function ReviewsPage() {
                         <StarRating rating={review.rating} disabled={true} />
                       </div>
                       {review.comment && (
-                        <p className="text-gray-700 bg-gray-50 rounded-lg p-4">
+                        <p className="text-gray-700 bg-gray-50 rounded-lg p-3 md:p-4 text-sm leading-relaxed mt-3">
                           {review.comment}
                         </p>
                       )}
@@ -313,34 +311,34 @@ export default function ReviewsPage() {
     );
   }
 
-  // User View (original code)
+  // User View
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-6 md:py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Reviews & Ratings</h1>
-          <p className="text-gray-600 mt-2">
-            Share your experience and read what others think
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Reviews</h1>
+          <p className="text-gray-600 mt-1 md:mt-2">
+            Share your experience with restaurants
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab('write')}
-              className={`flex-1 px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
+              className={`flex-1 px-4 md:px-6 py-3 md:py-4 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'write'
                   ? 'border-amber-500 text-amber-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Write a Review
+              Write Review
             </button>
             <button
               onClick={() => setActiveTab('my-reviews')}
-              className={`flex-1 px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
+              className={`flex-1 px-4 md:px-6 py-3 md:py-4 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'my-reviews'
                   ? 'border-amber-500 text-amber-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -350,27 +348,27 @@ export default function ReviewsPage() {
             </button>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             {activeTab === 'write' ? (
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Review Your Delivered Orders
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
+                  Review Your Orders
                 </h2>
                 
                 {reviewableOrders.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FaRegStar className="w-8 h-8 text-gray-400" />
+                  <div className="text-center py-8 md:py-12">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FaRegStar className="w-8 h-8 md:w-10 md:h-10 text-gray-400" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      No orders to review yet
+                      No orders to review
                     </h3>
                     <p className="text-gray-600">
-                      Youll be able to review orders once theyre delivered.
+                      You can review orders once they are delivered.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-4 md:space-y-6">
                     {reviewableOrders.map((order) => (
                       <ReviewForm
                         key={order._id}
@@ -384,39 +382,43 @@ export default function ReviewsPage() {
               </div>
             ) : (
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
                   My Reviews
                 </h2>
                 
                 {userReviews.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FaRegStar className="w-8 h-8 text-gray-400" />
+                  <div className="text-center py-8 md:py-12">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FaRegStar className="w-8 h-8 md:w-10 md:h-10 text-gray-400" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       No reviews yet
                     </h3>
                     <p className="text-gray-600">
-                      You havent written any reviews yet.
+                      You haven't written any reviews yet.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-4 md:space-y-6">
                     {userReviews.map((review) => (
-                      <div key={review._id} className="border border-gray-200 rounded-lg p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h3 className="font-semibold text-gray-900">
+                      <div key={review._id} className="border border-gray-200 rounded-xl p-4 md:p-6 hover:shadow-sm transition-shadow">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-3 md:mb-4">
+                          <div className="flex-1 mb-2 md:mb-0">
+                            <h3 className="font-semibold text-gray-900 md:text-lg">
                               {review.restaurantId?.name || 'Restaurant'}
                             </h3>
                             <p className="text-sm text-gray-500">
-                              {new Date(review.createdAt).toLocaleDateString()}
+                              {new Date(review.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
                             </p>
                           </div>
                           <StarRating rating={review.rating} disabled={true} />
                         </div>
                         {review.comment && (
-                          <p className="text-gray-700">{review.comment}</p>
+                          <p className="text-gray-700 text-sm leading-relaxed mt-3">{review.comment}</p>
                         )}
                       </div>
                     ))}
@@ -431,7 +433,7 @@ export default function ReviewsPage() {
   );
 }
 
-// Review Form Component (unchanged)
+// Review Form Component
 function ReviewForm({ order, onSubmit, submitting }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -439,7 +441,7 @@ function ReviewForm({ order, onSubmit, submitting }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (rating === 0) {
-      alert('Please select a rating');
+      showToast.error('Please select a rating');
       return;
     }
     onSubmit(order._id, order.restaurantId._id, rating, comment);
@@ -448,38 +450,38 @@ function ReviewForm({ order, onSubmit, submitting }) {
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-6">
-      <div className="flex items-start space-x-4 mb-4">
+    <div className="border border-gray-200 rounded-xl p-4 md:p-6 hover:shadow-sm transition-shadow">
+      <div className="flex flex-col md:flex-row md:items-start md:space-x-4 mb-4 md:mb-6">
         {order.restaurantId.avatar ? (
           <img
             src={order.restaurantId.avatar}
             alt={order.restaurantId.name}
-            className="w-16 h-16 rounded-lg object-cover"
+            className="w-16 h-16 rounded-xl object-cover mx-auto md:mx-0 mb-3 md:mb-0"
           />
         ) : (
-          <div className="w-16 h-16 bg-amber-500 rounded-lg flex items-center justify-center">
+          <div className="w-16 h-16 bg-amber-500 rounded-xl flex items-center justify-center mx-auto md:mx-0 mb-3 md:mb-0">
             <span className="text-white font-bold text-lg">
               {order.restaurantId.name?.charAt(0).toUpperCase()}
             </span>
           </div>
         )}
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900">{order.restaurantId.name}</h3>
-          <p className="text-sm text-gray-600">
-            Order #{order._id.slice(-8).toUpperCase()} • Delivered on {new Date(order.updatedAt).toLocaleDateString()}
+        <div className="flex-1 text-center md:text-left">
+          <h3 className="font-semibold text-gray-900 text-lg">{order.restaurantId.name}</h3>
+          <p className="text-sm text-gray-600 mb-1">
+            Order #{order._id.slice(-8).toUpperCase()}
           </p>
           <p className="text-sm text-gray-600">
-            Total: ${order.total.toFixed(2)}
+            Delivered on {new Date(order.updatedAt).toLocaleDateString()} • ${order.total.toFixed(2)}
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            How would you rate your experience?
+          <label className="block text-sm font-medium text-gray-700 mb-2 md:mb-3">
+            Rate your experience
           </label>
-          <div className="flex space-x-1">
+          <div className="flex justify-center md:justify-start space-x-2">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
@@ -488,9 +490,9 @@ function ReviewForm({ order, onSubmit, submitting }) {
                 className="cursor-pointer hover:scale-110 transition-transform"
               >
                 {star <= rating ? (
-                  <FaStar className="w-8 h-8 text-amber-500" />
+                  <FaStar className="w-8 h-8 md:w-10 md:h-10 text-amber-500" />
                 ) : (
-                  <FaRegStar className="w-8 h-8 text-amber-500" />
+                  <FaRegStar className="w-8 h-8 md:w-10 md:h-10 text-amber-500" />
                 )}
               </button>
             ))}
@@ -498,7 +500,7 @@ function ReviewForm({ order, onSubmit, submitting }) {
         </div>
 
         <div>
-          <label htmlFor={`comment-${order._id}`} className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor={`comment-${order._id}`} className="block text-sm font-medium text-gray-700 mb-2 md:mb-3">
             Share your experience (optional)
           </label>
           <textarea
@@ -506,19 +508,19 @@ function ReviewForm({ order, onSubmit, submitting }) {
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
             placeholder="What did you like about the food and service?"
             maxLength={500}
           />
-          <p className="text-xs text-gray-500 mt-1">
-            {comment.length}/500 characters
+          <p className="text-xs text-gray-500 mt-1 md:mt-2 text-right">
+            {comment.length}/500
           </p>
         </div>
 
         <button
           type="submit"
           disabled={submitting || rating === 0}
-          className="px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full md:w-auto px-6 py-2 md:py-3 bg-amber-500 text-white font-medium rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? 'Submitting...' : 'Submit Review'}
         </button>
