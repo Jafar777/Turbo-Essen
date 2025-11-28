@@ -1,4 +1,4 @@
-// Enhanced version with Framer Motion
+// Enhanced version with Framer Motion - RESPONSIVE
 "use client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -16,6 +16,7 @@ export default function FoodAnimation() {
     return () => clearInterval(interval);
   }, []);
 
+  // Responsive variants for different screen sizes
   const circularVariants = {
     enter: {
       x: 400,
@@ -37,8 +38,30 @@ export default function FoodAnimation() {
     }
   };
 
+  // Mobile variants
+  const mobileCircularVariants = {
+    enter: {
+      x: 200,
+      y: -150,
+      scale: 0.6,
+      opacity: 0.9,
+    },
+    center: {
+      x: 50,
+      y: 100,
+      scale: 0.7,
+      opacity: 1,
+    },
+    exit: {
+      x: -100,
+      y: 150,
+      scale: 0.7,
+      opacity: 1,
+    }
+  };
+
   return (
-    <div className="absolute top-0 left-0 w-80 h-80 pointer-events-none z-20">
+    <div className="absolute top-0 left-0 w-40 h-40 md:w-60 md:h-60 lg:w-80 lg:h-80 pointer-events-none z-20">
       <div className="relative w-full h-full">
         <AnimatePresence mode="wait">
           <motion.div
@@ -51,14 +74,20 @@ export default function FoodAnimation() {
               duration: 2,
               ease: "easeInOut"
             }}
-            className="absolute w-80 h-80"
+            className="absolute w-full h-full"
+            // Responsive animation variants
+            custom={typeof window !== "undefined" ? window.innerWidth : 0}
+            // Mobile breakpoint
+            {...(typeof window !== "undefined" && window.innerWidth < 768 ? {
+              variants: mobileCircularVariants
+            } : {})}
           >
             <Image
               src={foodImages[currentIndex]}
               alt="Food item"
-              width={228}
-              height={228}
-              className="object-cover rounded-full "
+              fill
+              className="object-cover rounded-full"
+              sizes="(max-width: 768px) 160px, (max-width: 1024px) 240px, 320px"
             />
           </motion.div>
         </AnimatePresence>
