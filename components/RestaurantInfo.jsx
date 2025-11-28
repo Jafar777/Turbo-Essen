@@ -14,6 +14,7 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
     totalTables: 10,
     availableTables: 10,
     isOpen: true,
+    orderTypes: ['dine_in', 'delivery', 'takeaway'],
     openingHours: {
       monday: { open: '09:00', close: '22:00', closed: false },
       tuesday: { open: '09:00', close: '22:00', closed: false },
@@ -40,6 +41,7 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
   const [openingHoursLoading, setOpeningHoursLoading] = useState(false);
+  const [orderTypesLoading, setOrderTypesLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [activePromoTab, setActivePromoTab] = useState('active');
   const [editingPromo, setEditingPromo] = useState(null);
@@ -71,6 +73,7 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
         totalTables: restaurant.totalTables || 10,
         availableTables: restaurant.availableTables || 10,
         isOpen: restaurant.isOpen !== undefined ? restaurant.isOpen : true,
+        orderTypes: restaurant.orderTypes || ['dine_in', 'delivery', 'takeaway'],
         openingHours: restaurant.openingHours || {
           monday: { open: '09:00', close: '22:00', closed: false },
           tuesday: { open: '09:00', close: '22:00', closed: false },
@@ -278,35 +281,66 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
   };
 
   // Save opening hours to database
-const handleSaveOpeningHours = async () => {
-  if (!restaurant) return;
+  const handleSaveOpeningHours = async () => {
+    if (!restaurant) return;
 
-  setOpeningHoursLoading(true);
-  setMessage({ type: '', text: '' });
+    setOpeningHoursLoading(true);
+    setMessage({ type: '', text: '' });
 
-  try {
-    const response = await fetch(`/api/restaurants/${restaurant._id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        openingHours: formData.openingHours
-      })
-    });
+    try {
+      const response = await fetch(`/api/restaurants/${restaurant._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          openingHours: formData.openingHours
+        })
+      });
 
-    if (response.ok) {
-      setMessage({ type: 'success', text: 'Opening hours updated successfully!' });
-      onUpdate();
-    } else {
-      const errorData = await response.json();
-      setMessage({ type: 'error', text: errorData.error || 'Failed to update opening hours' });
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Opening hours updated successfully!' });
+        onUpdate();
+      } else {
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.error || 'Failed to update opening hours' });
+      }
+    } catch (error) {
+      console.error('Error updating opening hours:', error);
+      setMessage({ type: 'error', text: 'Error updating opening hours' });
+    } finally {
+      setOpeningHoursLoading(false);
     }
-  } catch (error) {
-    console.error('Error updating opening hours:', error);
-    setMessage({ type: 'error', text: 'Error updating opening hours' });
-  } finally {
-    setOpeningHoursLoading(false);
-  }
-};
+  };
+
+  // Save order types to database
+  const handleSaveOrderTypes = async () => {
+    if (!restaurant) return;
+
+    setOrderTypesLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const response = await fetch(`/api/restaurants/${restaurant._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderTypes: formData.orderTypes
+        })
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Order types updated successfully!' });
+        onUpdate();
+      } else {
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.error || 'Failed to update order types' });
+      }
+    } catch (error) {
+      console.error('Error updating order types:', error);
+      setMessage({ type: 'error', text: 'Error updating order types' });
+    } finally {
+      setOrderTypesLoading(false);
+    }
+  };
 
   // Reset opening hours to original values
   const handleResetOpeningHours = () => {
@@ -316,6 +350,17 @@ const handleSaveOpeningHours = async () => {
         openingHours: restaurant.openingHours
       }));
       setMessage({ type: 'info', text: 'Opening hours reset to saved values' });
+    }
+  };
+
+  // Reset order types to original values
+  const handleResetOrderTypes = () => {
+    if (restaurant) {
+      setFormData(prev => ({
+        ...prev,
+        orderTypes: restaurant.orderTypes || ['dine_in', 'delivery', 'takeaway']
+      }));
+      setMessage({ type: 'info', text: 'Order types reset to saved values' });
     }
   };
 
@@ -516,6 +561,7 @@ const handleSaveOpeningHours = async () => {
     { id: 'status', label: 'Business Status', icon: FiSettings },
     { id: 'images', label: 'Brand Assets', icon: FiImage },
     { id: 'hours', label: 'Operating Hours', icon: FiClock },
+    { id: 'orderTypes', label: 'Order Types', icon: FiTag },
     { id: 'info', label: 'Business Profile', icon: FiInfo },
     { id: 'promotions', label: 'Promotions', icon: FiTag },
   ];
@@ -770,8 +816,6 @@ const handleSaveOpeningHours = async () => {
               </div>
             )}
 
-
-
             {/* Operating Hours Section */}
             {activeSection === 'hours' && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -891,6 +935,154 @@ const handleSaveOpeningHours = async () => {
                           return `${formatTimeTo12Hour(openTime)} - ${formatTimeTo12Hour(closeTime)}`;
                         })()}
                       </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Order Types Section */}
+            {activeSection === 'orderTypes' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-8">
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900">Order Types</h2>
+                    <p className="text-gray-600 mt-1">Choose which order types you want to accept</p>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="bg-blue-50 rounded-xl p-6 border border-blue-100">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <FiTag className="w-5 h-5 mr-2 text-blue-500" />
+                        Available Order Types
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        Select the types of orders you want to accept from customers. Disabled order types will not appear as options in the cart.
+                      </p>
+
+                      <div className="space-y-4">
+                        {/* Dine In Option */}
+                        <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                              <span className="text-green-600 text-lg">🍽️</span>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900">Dine In</h4>
+                              <p className="text-sm text-gray-600">Customers eat at your restaurant</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.orderTypes?.includes('dine_in') || false}
+                              onChange={(e) => {
+                                const newOrderTypes = e.target.checked
+                                  ? [...(formData.orderTypes || []), 'dine_in']
+                                  : (formData.orderTypes || []).filter(type => type !== 'dine_in');
+                                setFormData(prev => ({ ...prev, orderTypes: newOrderTypes }));
+                              }}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          </label>
+                        </div>
+
+                        {/* Delivery Option */}
+                        <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <span className="text-blue-600 text-lg">🚚</span>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900">Delivery</h4>
+                              <p className="text-sm text-gray-600">Food delivered to customer's location</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.orderTypes?.includes('delivery') || false}
+                              onChange={(e) => {
+                                const newOrderTypes = e.target.checked
+                                  ? [...(formData.orderTypes || []), 'delivery']
+                                  : (formData.orderTypes || []).filter(type => type !== 'delivery');
+                                setFormData(prev => ({ ...prev, orderTypes: newOrderTypes }));
+                              }}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          </label>
+                        </div>
+
+                        {/* Takeaway Option */}
+                        <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                              <span className="text-amber-600 text-lg">📦</span>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900">Takeaway</h4>
+                              <p className="text-sm text-gray-600">Customers pick up their orders</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.orderTypes?.includes('takeaway') || false}
+                              onChange={(e) => {
+                                const newOrderTypes = e.target.checked
+                                  ? [...(formData.orderTypes || []), 'takeaway']
+                                  : (formData.orderTypes || []).filter(type => type !== 'takeaway');
+                                setFormData(prev => ({ ...prev, orderTypes: newOrderTypes }));
+                              }}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Info Message */}
+                      <div className="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                        <div className="flex items-start space-x-3">
+                          <FiInfo className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm text-amber-800 font-medium">Order Type Requirements</p>
+                            <p className="text-sm text-amber-700 mt-1">
+                              • Dine In: Requires table management setup<br/>
+                              • Delivery: Requires delivery location mapping<br/>
+                              • Takeaway: Simple pickup system
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Save Button */}
+                      <div className="flex justify-end space-x-4 pt-6 mt-6 border-t border-gray-200">
+                        <button
+                          type="button"
+                          onClick={handleResetOrderTypes}
+                          className="px-6 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-xl transition-colors duration-200"
+                        >
+                          Reset Changes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveOrderTypes}
+                          disabled={orderTypesLoading}
+                          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                        >
+                          {orderTypesLoading ? (
+                            <div className="flex items-center">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Saving Changes...
+                            </div>
+                          ) : (
+                            'Save Order Types'
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1033,7 +1225,8 @@ const handleSaveOpeningHours = async () => {
                         type="button"
                         onClick={() => {
                           if (restaurant) {
-                            setFormData({
+                            setFormData(prev => ({
+                              ...prev,
                               name: restaurant.name || '',
                               description: restaurant.description || '',
                               address: restaurant.address || '',
@@ -1051,7 +1244,7 @@ const handleSaveOpeningHours = async () => {
                                 saturday: { open: '10:00', close: '23:00', closed: false },
                                 sunday: { open: '10:00', close: '21:00', closed: false }
                               }
-                            });
+                            }));
                           }
                         }}
                         className="px-8 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-xl transition-colors duration-200"

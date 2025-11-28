@@ -31,6 +31,12 @@ const RestaurantSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Add order types configuration
+  orderTypes: {
+    type: [String],
+    enum: ['dine_in', 'delivery', 'takeaway'],
+    default: ['dine_in', 'delivery', 'takeaway']
+  },
   // Add opening hours
   openingHours: {
     monday: { open: String, close: String, closed: { type: Boolean, default: false } },

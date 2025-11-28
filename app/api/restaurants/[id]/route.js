@@ -62,10 +62,18 @@ export async function PUT(request, { params }) {
   }
 }
 
-// app/api/restaurants/[id]/route.js - Update the GET response
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
+    
+    // Check if the ID is a valid MongoDB ObjectId
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid restaurant ID format' 
+      }, { status: 400 });
+    }
+    
     await dbConnect();
     
     const restaurant = await Restaurant.findById(id);
@@ -74,10 +82,9 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: false, error: 'Restaurant not found' }, { status: 404 });
     }
 
-    // Return the complete restaurant object, not a subset
     return NextResponse.json({ 
       success: true, 
-      restaurant: restaurant.toObject() // Return the full document
+      restaurant: restaurant.toObject()
     });
 
   } catch (error) {

@@ -29,8 +29,17 @@ export default function CartPage() {
   const [tableNumber, setTableNumber] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [availableTables, setAvailableTables] = useState([]);
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [restaurantOrderTypes, setRestaurantOrderTypes] = useState(['dine_in', 'delivery', 'takeaway']);
+
+  // Set default order type based on available options
+  useEffect(() => {
+    if (restaurantOrderTypes.length > 0 && !restaurantOrderTypes.includes(selectedOrderType)) {
+      setSelectedOrderType(restaurantOrderTypes[0]);
+    }
+  }, [restaurantOrderTypes, selectedOrderType]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -53,11 +62,40 @@ export default function CartPage() {
       const response = await fetch('/api/cart');
       if (response.ok) {
         const data = await response.json();
-        setCart({
+        const cartData = {
           items: data.items || [],
           total: data.total || 0,
           itemCount: data.itemCount || 0
-        });
+        };
+        setCart(cartData);
+
+        // Fetch restaurant order types and available tables
+        if (data.items && data.items.length > 0) {
+          const restaurantId = data.items[0].restaurantId;
+
+          // Fetch restaurant details including orderTypes
+          const restaurantResponse = await fetch(`/api/restaurants/${restaurantId}`);
+          if (restaurantResponse.ok) {
+            const restaurantData = await restaurantResponse.json();
+            const enabledOrderTypes = restaurantData.restaurant.orderTypes || ['dine_in', 'delivery', 'takeaway'];
+            setRestaurantOrderTypes(enabledOrderTypes);
+            
+            // Update selected order type if current one is not available
+            if (!enabledOrderTypes.includes(selectedOrderType) && enabledOrderTypes.length > 0) {
+              setSelectedOrderType(enabledOrderTypes[0]);
+            }
+          }
+
+          // Fetch available tables
+          const tablesResponse = await fetch(`/api/restaurants/available-tables?restaurantId=${restaurantId}`);
+          if (tablesResponse.ok) {
+            const tablesData = await tablesResponse.json();
+            setAvailableTables(tablesData.tables || []);
+          }
+        } else {
+          setRestaurantOrderTypes(['dine_in', 'delivery', 'takeaway']);
+          setAvailableTables([]);
+        }
       } else {
         console.error('Failed to fetch cart');
         setCart({
@@ -65,6 +103,8 @@ export default function CartPage() {
           total: 0,
           itemCount: 0
         });
+        setRestaurantOrderTypes(['dine_in', 'delivery', 'takeaway']);
+        setAvailableTables([]);
       }
     } catch (error) {
       console.error('Error fetching cart:', error);
@@ -73,14 +113,45 @@ export default function CartPage() {
         total: 0,
         itemCount: 0
       });
+      setRestaurantOrderTypes(['dine_in', 'delivery', 'takeaway']);
+      setAvailableTables([]);
     } finally {
       setLoading(false);
     }
   };
 
+ // In your cart page component, replace the fetchAvailableTables function:
+const fetchAvailableTables = async () => {
+  try {
+    if (cart && cart.items && cart.items.length > 0) {
+      const restaurantId = cart.items[0].restaurantId;
+      // Use the new endpoint
+      const response = await fetch(`/api/restaurants/available-tables?restaurantId=${restaurantId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableTables(data.tables || []);
+      }
+    } else {
+      setAvailableTables([]);
+    }
+  } catch (error) {
+    console.error('Error fetching available tables:', error);
+    setAvailableTables([]);
+  }
+};
+
+  // Add another useEffect to fetch tables when cart is updated
+  useEffect(() => {
+    if (cart && cart.items && cart.items.length > 0) {
+      fetchAvailableTables();
+    } else {
+      setAvailableTables([]);
+    }
+  }, [cart]);
+
   const updateQuantity = async (itemId, newQuantity) => {
     if (newQuantity < 1) return;
-    
+
     setUpdating(true);
     try {
       const response = await fetch('/api/cart', {
@@ -129,7 +200,7 @@ export default function CartPage() {
 
   const clearCart = async () => {
     if (!confirm('Are you sure you want to clear your cart?')) return;
-    
+
     setUpdating(true);
     try {
       const response = await fetch('/api/cart', {
@@ -153,29 +224,33 @@ export default function CartPage() {
 
   const placeOrder = async () => {
     if (!cart || cart.items.length === 0) return;
-    
-    // Validate dine-in order
-    if (selectedOrderType === 'dine_in' && !tableNumber) {
-    showToast.warning('Please enter a table number for dine-in orders');
-      return;
-    }
 
-    if (selectedOrderType === 'dine_in' && (isNaN(tableNumber) || tableNumber < 1)) {
-    showToast.warning('Please set your delivery location on the map');
-      return;
+    // Validate dine-in order
+    if (selectedOrderType === 'dine_in') {
+      if (!tableNumber) {
+        showToast.warning('Please select a table number for dine-in orders');
+        return;
+      }
+
+      // Check if selected table is available
+      const selectedTable = availableTables.find(t => t.tableNumber === parseInt(tableNumber));
+      if (!selectedTable || selectedTable.status !== 'available') {
+        showToast.warning('Selected table is not available. Please choose another table.');
+        return;
+      }
     }
 
     // Validate delivery order
     if (selectedOrderType === 'delivery' && !deliveryLocation) {
-      alert('Please set your delivery location on the map');
+      showToast.warning('Please set your delivery location on the map');
       return;
     }
 
     if (selectedOrderType === 'delivery' && (!deliveryLocation.address || !deliveryLocation.coordinates)) {
-      alert('Please set a valid delivery location');
+      showToast.warning('Please set a valid delivery location');
       return;
     }
-    
+
     setIsPlacingOrder(true);
     try {
       const orderData = {
@@ -211,24 +286,23 @@ export default function CartPage() {
 
       if (response.ok) {
         const result = await response.json();
-        
+
         // Clear the cart after successful order
         await fetch('/api/cart', { method: 'DELETE' });
         setCart({ items: [], total: 0 });
         window.dispatchEvent(new CustomEvent('cartUpdated'));
-        
-        // Show success message
-    showToast.success('Order placed successfully! You can track your order in the Orders section.');
-        
-        // Optionally redirect to orders page
-        // router.push('/dashboard/orders');
+
+        showToast.success('Order placed successfully! You can track your order in the Orders section.');
+
+        // Redirect to orders page
+        router.push('/dashboard/orders');
       } else {
         const errorData = await response.json();
-    showToast.error(errorData.error || 'Failed to place order');
+        showToast.error(errorData.error || 'Failed to place order');
       }
     } catch (error) {
       console.error('Error placing order:', error);
-      alert('Error placing order. Please try again.');
+      showToast.error('Error placing order. Please try again.');
     } finally {
       setIsPlacingOrder(false);
     }
@@ -266,6 +340,12 @@ export default function CartPage() {
   const cartTotal = cart?.total || 0;
   const itemCount = cart?.itemCount || cartItems.reduce((total, item) => total + item.quantity, 0);
 
+  // Filter available tables for dine-in
+  const availableTableNumbers = availableTables
+    .filter(table => table.status === 'available')
+    .map(table => table.tableNumber)
+    .sort((a, b) => a - b);
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -288,7 +368,7 @@ export default function CartPage() {
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
               <p className="text-gray-600 mb-8">
-                Looks like you havent added any delicious items to your cart yet.
+                Looks like you haven't added any delicious items to your cart yet.
               </p>
               <Link
                 href="/order-now"
@@ -362,7 +442,7 @@ export default function CartPage() {
                               <span className="text-gray-600">+</span>
                             </button>
                           </div>
-                          
+
                           {/* Remove Button */}
                           <button
                             onClick={() => removeItem(item._id)}
@@ -409,84 +489,117 @@ export default function CartPage() {
                     Order Type
                   </h3>
                   <div className="space-y-2">
-                    {/* Delivery */}
-                    <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          name="orderType"
-                          value="delivery"
-                          checked={selectedOrderType === 'delivery'}
-                          onChange={(e) => setSelectedOrderType(e.target.value)}
-                          className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-gray-700 font-medium">🚚 Delivery</span>
-                        <p className="text-sm text-gray-500">Get your food delivered to your location</p>
-                      </div>
-                    </label>
+                    {/* Delivery - Only show if enabled */}
+                    {restaurantOrderTypes.includes('delivery') && (
+                      <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            name="orderType"
+                            value="delivery"
+                            checked={selectedOrderType === 'delivery'}
+                            onChange={(e) => setSelectedOrderType(e.target.value)}
+                            className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-gray-700 font-medium">🚚 Delivery</span>
+                          <p className="text-sm text-gray-500">Get your food delivered to your location</p>
+                        </div>
+                      </label>
+                    )}
 
-                    {/* Dine In */}
-                    <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          name="orderType"
-                          value="dine_in"
-                          checked={selectedOrderType === 'dine_in'}
-                          onChange={(e) => setSelectedOrderType(e.target.value)}
-                          className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-gray-700 font-medium">🍽️ Dine In</span>
-                        <p className="text-sm text-gray-500">Eat at the restaurant</p>
-                      </div>
-                    </label>
+                    {/* Dine In - Only show if enabled */}
+                    {restaurantOrderTypes.includes('dine_in') && (
+                      <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            name="orderType"
+                            value="dine_in"
+                            checked={selectedOrderType === 'dine_in'}
+                            onChange={(e) => setSelectedOrderType(e.target.value)}
+                            className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-gray-700 font-medium">🍽️ Dine In</span>
+                          <p className="text-sm text-gray-500">Eat at the restaurant</p>
+                        </div>
+                      </label>
+                    )}
 
-                    {/* Takeaway */}
-                    <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          name="orderType"
-                          value="takeaway"
-                          checked={selectedOrderType === 'takeaway'}
-                          onChange={(e) => setSelectedOrderType(e.target.value)}
-                          className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
-                        />
+                    {/* Takeaway - Only show if enabled */}
+                    {restaurantOrderTypes.includes('takeaway') && (
+                      <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            name="orderType"
+                            value="takeaway"
+                            checked={selectedOrderType === 'takeaway'}
+                            onChange={(e) => setSelectedOrderType(e.target.value)}
+                            className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-gray-700 font-medium">📦 Takeaway</span>
+                          <p className="text-sm text-gray-500">Pick up your order to go</p>
+                        </div>
+                      </label>
+                    )}
+
+                    {/* Message when no order types are available */}
+                    {restaurantOrderTypes.length === 0 && (
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-red-700 text-sm font-medium">
+                          This restaurant is not currently accepting any orders. Please check back later.
+                        </p>
                       </div>
-                      <div className="flex-1">
-                        <span className="text-gray-700 font-medium">📦 Takeaway</span>
-                        <p className="text-sm text-gray-500">Pick up your order to go</p>
-                      </div>
-                    </label>
+                    )}
                   </div>
 
-                  {/* Table Number Input for Dine In */}
-                  {selectedOrderType === 'dine_in' && (
+                  {/* Table Number Selection for Dine In - Only show if dine_in is selected AND enabled */}
+                  {selectedOrderType === 'dine_in' && restaurantOrderTypes.includes('dine_in') && (
                     <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Table Number *
                       </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={tableNumber}
-                        onChange={(e) => setTableNumber(e.target.value)}
-                        placeholder="Enter your table number"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      />
-                      <p className="text-xs text-blue-600 mt-1">
-                        Please enter the table number where you are seated
-                      </p>
+                      {loading ? (
+                        <div className="w-full px-3 py-2 bg-gray-100 rounded-lg animate-pulse">
+                          Loading tables...
+                        </div>
+                      ) : (
+                        <>
+                          <select
+                            value={tableNumber}
+                            onChange={(e) => setTableNumber(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                          >
+                            <option value="">Select a table</option>
+                            {availableTableNumbers.map(tableNum => (
+                              <option key={tableNum} value={tableNum}>
+                                Table {tableNum}
+                              </option>
+                            ))}
+                          </select>
+                          {availableTableNumbers.length === 0 ? (
+                            <p className="text-xs text-red-600 mt-1">
+                              No tables available. Please choose another order type.
+                            </p>
+                          ) : (
+                            <p className="text-xs text-blue-600 mt-1">
+                              Please select the table where you are seated
+                            </p>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
 
-                  {/* Delivery Location Map for Delivery */}
-                  {selectedOrderType === 'delivery' && (
+                  {/* Delivery Location Map for Delivery - Only show if delivery is selected AND enabled */}
+                  {selectedOrderType === 'delivery' && restaurantOrderTypes.includes('delivery') && (
                     <div className="mt-4">
                       <DeliveryMap onLocationSelect={handleLocationSelect} />
                     </div>
@@ -514,11 +627,11 @@ export default function CartPage() {
                       <div className="flex-1">
                         <span className="text-gray-700 font-medium">Cash on {selectedOrderType === 'delivery' ? 'Delivery' : selectedOrderType === 'dine_in' ? 'Arrival' : 'Pickup'}</span>
                         <p className="text-sm text-gray-500">
-                          {selectedOrderType === 'delivery' 
-                            ? 'Pay when you receive your order' 
+                          {selectedOrderType === 'delivery'
+                            ? 'Pay when you receive your order'
                             : selectedOrderType === 'dine_in'
-                            ? 'Pay at the restaurant'
-                            : 'Pay when you pick up your order'}
+                              ? 'Pay at the restaurant'
+                              : 'Pay when you pick up your order'}
                         </p>
                       </div>
                       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -550,18 +663,19 @@ export default function CartPage() {
 
                 <button
                   onClick={placeOrder}
-                  disabled={isPlacingOrder || updating || 
+                  disabled={isPlacingOrder || updating ||
                     (selectedOrderType === 'dine_in' && !tableNumber) ||
-                    (selectedOrderType === 'delivery' && !deliveryLocation)}
+                    (selectedOrderType === 'delivery' && !deliveryLocation) ||
+                    restaurantOrderTypes.length === 0}
                   className="w-full bg-amber-500 text-white py-3 px-4 rounded-lg font-semibold hover:bg-amber-600 transition-colors duration-200 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isPlacingOrder 
-                    ? 'Placing Order...' 
+                  {isPlacingOrder
+                    ? 'Placing Order...'
                     : selectedOrderType === 'delivery'
-                    ? 'Place Delivery Order'
-                    : selectedOrderType === 'dine_in'
-                    ? 'Place Dine-in Order'
-                    : 'Place Takeaway Order'}
+                      ? 'Place Delivery Order'
+                      : selectedOrderType === 'dine_in'
+                        ? 'Place Dine-in Order'
+                        : 'Place Takeaway Order'}
                 </button>
 
                 <Link
