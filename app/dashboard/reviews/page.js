@@ -395,7 +395,7 @@ export default function ReviewsPage() {
                       No reviews yet
                     </h3>
                     <p className="text-gray-600">
-                      You haven't written any reviews yet.
+                      You havent written any reviews yet.
                     </p>
                   </div>
                 ) : (
