@@ -2,7 +2,8 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { CldUploadWidget } from 'next-cloudinary';
-import { FiSettings, FiImage, FiClock, FiInfo, FiTag, FiUpload, FiX, FiCheck, FiAlertCircle } from 'react-icons/fi';
+import { FiSettings, FiImage, FiClock, FiInfo, FiTag, FiUpload, FiX, FiCheck, FiAlertCircle, FiTruck } from 'react-icons/fi';
+import { IoTimeOutline } from 'react-icons/io5';
 
 export default function RestaurantInfo({ restaurant, onUpdate }) {
   const [formData, setFormData] = useState({
@@ -23,7 +24,14 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
       friday: { open: '09:00', close: '23:00', closed: false },
       saturday: { open: '10:00', close: '23:00', closed: false },
       sunday: { open: '10:00', close: '21:00', closed: false }
-    }
+    },
+
+    deliveryTime: {
+      min: 30,
+      max: 45
+    },
+    deliveryFee: 2.99,
+    freeDeliveryThreshold: 25
   });
 
   // Promo code management state
@@ -82,7 +90,11 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
           friday: { open: '09:00', close: '23:00', closed: false },
           saturday: { open: '10:00', close: '23:00', closed: false },
           sunday: { open: '10:00', close: '21:00', closed: false }
-        }
+        },
+        // Load delivery settings from restaurant
+        deliveryTime: restaurant.deliveryTime || { min: 30, max: 45 },
+        deliveryFee: restaurant.deliveryFee ?? 2.99,
+        freeDeliveryThreshold: restaurant.freeDeliveryThreshold || 25
       });
       setAvatarUrl(restaurant.avatar || '');
       setBannerUrl(restaurant.banner || '');
@@ -265,7 +277,38 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
       setSuddenCloseLoading(false);
     }
   };
+  // Save delivery settings to database
+  const handleSaveDeliverySettings = async () => {
+    if (!restaurant) return;
 
+    setLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const response = await fetch(`/api/restaurants/${restaurant._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryTime: formData.deliveryTime,
+          deliveryFee: formData.deliveryFee,
+          freeDeliveryThreshold: formData.freeDeliveryThreshold
+        })
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Delivery settings updated successfully!' });
+        onUpdate();
+      } else {
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.error || 'Failed to update delivery settings' });
+      }
+    } catch (error) {
+      console.error('Error updating delivery settings:', error);
+      setMessage({ type: 'error', text: 'Error updating delivery settings' });
+    } finally {
+      setLoading(false);
+    }
+  };
   // Add opening hours handlers
   const handleOpeningHoursChange = (day, field, value) => {
     setFormData(prev => ({
@@ -562,6 +605,7 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
     { id: 'images', label: 'Brand Assets', icon: FiImage },
     { id: 'hours', label: 'Operating Hours', icon: FiClock },
     { id: 'orderTypes', label: 'Order Types', icon: FiTag },
+    { id: 'delivery', label: 'Delivery Settings', icon: FiTruck }, // Add this line
     { id: 'info', label: 'Business Profile', icon: FiInfo },
     { id: 'promotions', label: 'Promotions', icon: FiTag },
   ];
@@ -578,8 +622,8 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
             </div>
             <div className="flex items-center space-x-3">
               <div className={`px-3 py-1 rounded-full text-sm font-medium ${getCurrentStatus()
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-red-100 text-red-800'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
                 }`}>
                 {getCurrentStatus() ? 'Currently Open' : 'Currently Closed'}
               </div>
@@ -600,8 +644,8 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                     key={item.id}
                     onClick={() => setActiveSection(item.id)}
                     className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${activeSection === item.id
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                        : 'text-gray-700 hover:bg-white hover:shadow-md'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                      : 'text-gray-700 hover:bg-white hover:shadow-md'
                       }`}
                   >
                     <Icon className="w-5 h-5 mr-3" />
@@ -616,10 +660,10 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
           <div className="flex-1">
             {message.text && (
               <div className={`mb-6 p-4 rounded-xl border-l-4 ${message.type === 'success'
-                  ? 'bg-green-50 border-green-500 text-green-700'
-                  : message.type === 'error'
-                    ? 'bg-red-50 border-red-500 text-red-700'
-                    : 'bg-blue-50 border-blue-500 text-blue-700'
+                ? 'bg-green-50 border-green-500 text-green-700'
+                : message.type === 'error'
+                  ? 'bg-red-50 border-red-500 text-red-700'
+                  : 'bg-blue-50 border-blue-500 text-blue-700'
                 }`}>
                 <div className="flex items-center">
                   {message.type === 'success' ? (
@@ -644,8 +688,8 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                       <p className="text-gray-600 mt-1">Manage your restaurant's operational status</p>
                     </div>
                     <div className={`px-4 py-2 rounded-full text-sm font-semibold ${getCurrentStatus()
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
                       }`}>
                       {getCurrentStatus() ? 'OPEN FOR BUSINESS' : 'TEMPORARILY CLOSED'}
                     </div>
@@ -674,8 +718,8 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                           onClick={handleSuddenClose}
                           disabled={suddenCloseLoading}
                           className={`w-full px-6 py-3 font-semibold rounded-xl transition-all duration-200 ${formData.isOpen
-                              ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg hover:shadow-xl'
-                              : 'bg-green-500 hover:bg-green-600 text-white shadow-lg hover:shadow-xl'
+                            ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg hover:shadow-xl'
+                            : 'bg-green-500 hover:bg-green-600 text-white shadow-lg hover:shadow-xl'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                           {suddenCloseLoading ? (
@@ -1050,8 +1094,8 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                           <div>
                             <p className="text-sm text-amber-800 font-medium">Order Type Requirements</p>
                             <p className="text-sm text-amber-700 mt-1">
-                              • Dine In: Requires table management setup<br/>
-                              • Delivery: Requires delivery location mapping<br/>
+                              • Dine In: Requires table management setup<br />
+                              • Delivery: Requires delivery location mapping<br />
                               • Takeaway: Simple pickup system
                             </p>
                           </div>
@@ -1083,6 +1127,195 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                           )}
                         </button>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'delivery' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-8">
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900">Delivery Settings</h2>
+                    <p className="text-gray-600 mt-1">Configure your delivery time estimates and fees</p>
+                  </div>
+
+                  <div className="space-y-8">
+                    {/* Delivery Time Settings */}
+                    <div className="bg-blue-50 rounded-xl p-6 border border-blue-100">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <IoTimeOutline className="w-5 h-5 mr-2 text-blue-500" />
+                        Estimated Delivery Time
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        Set the expected delivery time range that customers will see on your restaurant card.
+                      </p>
+
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">
+                            Minimum Delivery Time (minutes)
+                          </label>
+                          <input
+                            type="number"
+                            name="deliveryTimeMin"
+                            min="5"
+                            max="180"
+                            value={formData.deliveryTime?.min || 30}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              deliveryTime: {
+                                ...prev.deliveryTime,
+                                min: parseInt(e.target.value) || 30
+                              }
+                            }))}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Minimum: 5 minutes</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">
+                            Maximum Delivery Time (minutes)
+                          </label>
+                          <input
+                            type="number"
+                            name="deliveryTimeMax"
+                            min="10"
+                            max="180"
+                            value={formData.deliveryTime?.max || 45}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              deliveryTime: {
+                                ...prev.deliveryTime,
+                                max: parseInt(e.target.value) || 45
+                              }
+                            }))}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Maximum: 180 minutes</p>
+                        </div>
+                      </div>
+
+                      {formData.deliveryTime?.min >= formData.deliveryTime?.max && (
+                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-red-700 text-sm">
+                            Maximum delivery time must be greater than minimum delivery time.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                        <h4 className="font-semibold text-gray-900 mb-2">Preview:</h4>
+                        <div className="flex items-center text-gray-700">
+                          <IoTimeOutline className="w-4 h-4 mr-2 text-amber-500" />
+                          <span className="font-medium">
+                            {formData.deliveryTime?.min || 30}-{formData.deliveryTime?.max || 45} min
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Delivery Fee Settings */}
+                    <div className="bg-green-50 rounded-xl p-6 border border-green-100">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <FiTag className="w-5 h-5 mr-2 text-green-500" />
+                        Delivery Fee & Free Delivery
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        Set your delivery fee and the minimum order amount for free delivery.
+                      </p>
+
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">
+                            Delivery Fee ($)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="50"
+                            name="deliveryFee"
+                            value={formData.deliveryFee ?? 2.99}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              deliveryFee: e.target.value === '' ? null : parseFloat(e.target.value)
+                            }))}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Set to 0 for free delivery</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">
+                            Free Delivery Threshold ($)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="200"
+                            name="freeDeliveryThreshold"
+                            value={formData.freeDeliveryThreshold || 25}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              freeDeliveryThreshold: parseFloat(e.target.value) || 0
+                            }))}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Orders above this amount get free delivery</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                        <h4 className="font-semibold text-gray-900 mb-2">Preview:</h4>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-700">Delivery Fee:</span>
+                            <span className="font-medium">
+                              {(formData.deliveryFee ?? 2.99) === 0 ? 'FREE' : `$${(formData.deliveryFee ?? 2.99).toFixed(2)}`}
+                            </span>
+                          </div>
+                          {formData.freeDeliveryThreshold > 0 && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-700">Free delivery on orders over:</span>
+                              <span className="font-medium text-green-600">
+                                ${(formData.freeDeliveryThreshold || 25).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Save Button */}
+                    <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (restaurant) {
+                            setFormData(prev => ({
+                              ...prev,
+                              deliveryTime: restaurant.deliveryTime || { min: 30, max: 45 },
+                              deliveryFee: restaurant.deliveryFee || 2.99,
+                              freeDeliveryThreshold: restaurant.freeDeliveryThreshold || 25
+                            }));
+                          }
+                        }}
+                        className="px-6 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-xl transition-colors duration-200"
+                      >
+                        Reset Changes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveDeliverySettings}
+                        disabled={formData.deliveryTime?.min >= formData.deliveryTime?.max}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                      >
+                        Save Delivery Settings
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1409,8 +1642,8 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                           key={tab}
                           onClick={() => setActivePromoTab(tab)}
                           className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${activePromoTab === tab
-                              ? 'bg-white text-gray-900 shadow-sm'
-                              : 'text-gray-600 hover:text-gray-900'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
                             }`}
                         >
                           {tab === 'all' && 'All Promotions'}
@@ -1432,8 +1665,8 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                             <div className="flex-1">
                               <div className="flex items-center space-x-6">
                                 <span className={`px-3 py-1 text-xs font-semibold rounded-full ${promo.isActive
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-gray-100 text-gray-800'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-800'
                                   }`}>
                                   {promo.isActive ? 'ACTIVE' : 'INACTIVE'}
                                 </span>
@@ -1465,8 +1698,8 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                               <button
                                 onClick={() => handleTogglePromoStatus(promo._id, promo.isActive)}
                                 className={`px-4 py-2 text-sm rounded-lg transition-colors font-medium ${promo.isActive
-                                    ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                                    : 'bg-green-500 text-white hover:bg-green-600'
+                                  ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                                  : 'bg-green-500 text-white hover:bg-green-600'
                                   }`}
                               >
                                 {promo.isActive ? 'Deactivate' : 'Activate'}

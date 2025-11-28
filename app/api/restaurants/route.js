@@ -1,7 +1,7 @@
 // app/api/restaurants/route.js
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConnect'; // Adjust path to your db connection
-import Restaurant from '@/models/Restaurant'; // Adjust path to your Restaurant model
+import dbConnect from '@/lib/dbConnect';
+import Restaurant from '@/models/Restaurant';
 
 export async function GET() {
   try {
@@ -9,8 +9,17 @@ export async function GET() {
     
     // Fetch restaurants from your database
     const restaurants = await Restaurant.find({})
-      .select('name description address phone cuisineType avatar banner')
+      .select('name description address phone cuisineType avatar banner deliveryTime deliveryFee freeDeliveryThreshold openingHours isOpen averageRating totalReviews slug')
       .sort({ name: 1 });
+
+    // Debug: log what we're getting from the database
+    console.log('Restaurants from DB:', restaurants.map(r => ({
+      name: r.name,
+      deliveryFee: r.deliveryFee,
+      deliveryTime: r.deliveryTime,
+      hasDeliveryFee: r.deliveryFee !== undefined,
+      hasDeliveryTime: r.deliveryTime !== undefined
+    })));
 
     return NextResponse.json({ 
       success: true, 
@@ -22,7 +31,15 @@ export async function GET() {
         phone: r.phone,
         cuisineType: r.cuisineType,
         avatar: r.avatar,
-        banner: r.banner
+        banner: r.banner,
+        deliveryTime: r.deliveryTime,
+        deliveryFee: r.deliveryFee,
+        freeDeliveryThreshold: r.freeDeliveryThreshold,
+        openingHours: r.openingHours,
+        isOpen: r.isOpen,
+        averageRating: r.averageRating,
+        totalReviews: r.totalReviews,
+        slug: r.slug
       }))
     });
   } catch (error) {

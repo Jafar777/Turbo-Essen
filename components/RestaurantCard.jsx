@@ -1,6 +1,7 @@
 // components/RestaurantCard.jsx
 import Link from 'next/link';
 import { FiStar, FiMapPin, FiClock } from 'react-icons/fi';
+import { IoTimeOutline } from "react-icons/io5";
 
 export default function RestaurantCard({ restaurant }) {
   // Format time to 12-hour format
@@ -14,6 +15,12 @@ export default function RestaurantCard({ restaurant }) {
     return `${formattedHour}:${minutes} ${ampm}`;
   };
 
+    console.log('Restaurant data:', {
+    name: restaurant.name,
+    deliveryFee: restaurant.deliveryFee,
+    deliveryTime: restaurant.deliveryTime
+  });
+
   // Improved time parsing function
   const parseTimeToMinutes = (timeString, fallback = '00:00') => {
     if (!timeString || typeof timeString !== 'string') {
@@ -23,34 +30,62 @@ export default function RestaurantCard({ restaurant }) {
     return isNaN(hours) || isNaN(minutes) ? 0 : (hours * 60 + minutes);
   };
 
+const getDeliveryFeeDisplay = () => {
+  // More robust null/undefined checking
+  const deliveryFee = restaurant.deliveryFee !== undefined && restaurant.deliveryFee !== null 
+    ? restaurant.deliveryFee 
+    : 2.99;
+  
+  // Handle cases where deliveryFee might be a string
+  const fee = parseFloat(deliveryFee);
+  
+  if (isNaN(fee)) {
+    return 'Delivery fee not set';
+  }
+  
+  if (fee === 0) {
+    return 'Free delivery';
+  }
+  
+  return `$${fee.toFixed(2)} delivery`;
+};
+
+
+  // Get delivery time display
+  const getDeliveryTimeDisplay = () => {
+    const min = restaurant.deliveryTime?.min || 30;
+    const max = restaurant.deliveryTime?.max || 45;
+    return `${min}-${max} min`;
+  };
+
   // Get today's opening hours with safe defaults
   const getTodaysHours = () => {
     // Use restaurant's openingHours if available
     const openingHours = restaurant?.openingHours;
-    
+
     if (!openingHours) {
       return { status: 'closed', text: 'Hours not available' };
     }
-    
+
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const today = new Date().getDay();
     const todayKey = days[today];
     const todayHours = openingHours[todayKey];
-    
+
     // If no hours for today or restaurant is closed, return closed
     if (!todayHours || todayHours.closed) {
       return { status: 'closed', text: 'Closed today' };
     }
-    
+
     // Use actual restaurant hours from database
     const openTime = todayHours.open;
     const closeTime = todayHours.close;
-    
+
     // Validate that we have both open and close times
     if (!openTime || !closeTime) {
       return { status: 'unknown', text: 'Hours not set' };
     }
-    
+
     return {
       status: 'open',
       text: `${formatTime(openTime)} - ${formatTime(closeTime)}`,
@@ -62,17 +97,17 @@ export default function RestaurantCard({ restaurant }) {
   const isCurrentlyOpen = () => {
     // First check manual override (isOpen field)
     if (restaurant?.isOpen === false) return false;
-    
+
     const hours = getTodaysHours();
     if (!hours || hours.status !== 'open') return false;
-    
+
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
-    
+
     // Use safe time parsing
     const openTimeInMinutes = parseTimeToMinutes(hours.open);
     const closeTimeInMinutes = parseTimeToMinutes(hours.close);
-    
+
     // Handle closing times that cross midnight (like 00:00, 01:00, etc.)
     if (closeTimeInMinutes < openTimeInMinutes) {
       // Closing time is after midnight, so we need special logic
@@ -81,7 +116,7 @@ export default function RestaurantCard({ restaurant }) {
       // - current time is before closing time (next day morning)
       return currentTime >= openTimeInMinutes || currentTime < closeTimeInMinutes;
     }
-    
+
     // Normal case: closing time is on the same day
     return currentTime >= openTimeInMinutes && currentTime <= closeTimeInMinutes;
   };
@@ -124,18 +159,17 @@ export default function RestaurantCard({ restaurant }) {
               </div>
             </div>
           )}
-          
+
           {/* Status Badge */}
           <div className="absolute top-3 left-3">
-            <div className={`px-3 py-1 rounded-full text-sm font-semibold backdrop-blur-sm ${
-              isOpen 
-                ? 'bg-green-500/90 text-white' 
+            <div className={`px-3 py-1 rounded-full text-sm font-semibold backdrop-blur-sm ${isOpen
+                ? 'bg-green-500/90 text-white'
                 : 'bg-red-500/90 text-white'
-            }`}>
+              }`}>
               {isOpen ? 'Open Now' : 'Closed'}
             </div>
           </div>
-          
+
           {/* Rating Badge */}
           {averageRating > 0 && (
             <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1">
@@ -148,7 +182,7 @@ export default function RestaurantCard({ restaurant }) {
               </span>
             </div>
           )}
-          
+
           {/* Floating Avatar */}
           <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
             <div className="relative">
@@ -177,25 +211,41 @@ export default function RestaurantCard({ restaurant }) {
           <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-amber-700 transition-colors">
             {restaurant.name}
           </h3>
-          
+
           {restaurant.cuisineType && (
             <div className="inline-flex items-center px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-semibold mb-3">
               <span className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5"></span>
               {restaurant.cuisineType}
             </div>
           )}
-          
+
+          {/* Delivery Info */}
+          <div className="flex items-center justify-center gap-4 mb-3">
+            {/* Delivery Time */}
+            <div className="flex items-center text-gray-700 text-sm">
+              <IoTimeOutline className="w-4 h-4 mr-1 text-amber-500" />
+              <span className="font-medium">{getDeliveryTimeDisplay()}</span>
+            </div>
+
+            {/* Delivery Fee */}
+            <div className="flex items-center text-gray-700 text-sm">
+              <span className={`font-medium ${restaurant.deliveryFee === 0 ? 'text-green-600' : 'text-gray-700'
+                }`}>
+                {getDeliveryFeeDisplay()}
+              </span>
+            </div>
+          </div>
+
           {/* Rating Display */}
           <div className="flex items-center justify-center mb-3">
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <FiStar
                   key={star}
-                  className={`w-4 h-4 ${
-                    star <= Math.round(averageRating)
+                  className={`w-4 h-4 ${star <= Math.round(averageRating)
                       ? 'text-amber-500 fill-amber-500'
                       : 'text-gray-300'
-                  }`}
+                    }`}
                 />
               ))}
               <span className="text-sm text-gray-600 ml-1">
@@ -203,20 +253,20 @@ export default function RestaurantCard({ restaurant }) {
               </span>
             </div>
           </div>
-          
+
           {restaurant.description && (
             <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-2">
               {restaurant.description}
             </p>
           )}
-          
+
           {/* Opening Hours Info */}
           <div className="space-y-2 mb-4">
             <div className="flex items-center justify-center text-gray-700 text-sm font-medium">
               <FiClock className="w-4 h-4 mr-1.5 text-amber-500" />
               <span>{todaysHours.text}</span>
             </div>
-            
+
             {restaurant.address && (
               <div className="flex items-center justify-center text-gray-500 text-sm">
                 <FiMapPin className="w-4 h-4 mr-1.5 text-amber-500" />
@@ -224,7 +274,7 @@ export default function RestaurantCard({ restaurant }) {
               </div>
             )}
           </div>
-          
+
           {/* CTA Button */}
           <div className="mt-4">
             <button className="inline-flex items-center px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors duration-200 group-hover:shadow-lg">

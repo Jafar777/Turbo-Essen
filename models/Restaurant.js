@@ -67,6 +67,33 @@ const RestaurantSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // Add delivery settings
+  deliveryTime: {
+    min: {
+      type: Number,
+      default: 30,
+      min: 5,
+      max: 180
+    },
+    max: {
+      type: Number,
+      default: 45,
+      min: 10,
+      max: 180
+    }
+  },
+  deliveryFee: {
+    type: Number,
+    default: 2.99,
+    min: 0,
+    max: 50
+  },
+  freeDeliveryThreshold: {
+    type: Number,
+    default: 25,
+    min: 0,
+    max: 200
+  },
   
   promoCodes: [{
     code: {
@@ -130,6 +157,14 @@ RestaurantSchema.pre('save', function(next) {
       .replace(/\s+/g, '-') // replace spaces with -
       .replace(/-+/g, '-') // replace multiple - with single -
       .trim('-');
+  }
+  next();
+});
+
+// Validation to ensure max delivery time is greater than min
+RestaurantSchema.pre('save', function(next) {
+  if (this.deliveryTime && this.deliveryTime.max <= this.deliveryTime.min) {
+    next(new Error('Maximum delivery time must be greater than minimum delivery time'));
   }
   next();
 });
