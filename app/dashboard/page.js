@@ -1,4 +1,4 @@
-// app/dashboard/page.js
+// /Users/jafar/Desktop/turboessen/app/dashboard/page.js
 'use client';
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
@@ -64,6 +64,13 @@ export default function Dashboard() {
     return 'Good Evening';
   };
 
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount || 0);
+  };
+
   const getRoleBasedStats = () => {
     const baseStats = [];
 
@@ -101,7 +108,7 @@ export default function Dashboard() {
         },
         {
           title: 'Total Revenue',
-          value: `$${(stats.totalRevenue || 0).toLocaleString()}`,
+          value: formatCurrency(stats.totalRevenue || 0),
           icon: FaMoneyBillWave,
           color: 'text-green-600',
           bgColor: 'bg-green-50',
@@ -143,7 +150,7 @@ export default function Dashboard() {
         },
         {
           title: 'Revenue',
-          value: `$${(stats.totalRevenue || 0).toLocaleString()}`,
+          value: formatCurrency(stats.totalRevenue || 0),
           icon: FaMoneyBillWave,
           color: 'text-green-600',
           bgColor: 'bg-green-50',
@@ -204,14 +211,14 @@ export default function Dashboard() {
           href: '/dashboard/reviews'
         },
         {
-          title: 'Cart Items',
-          value: stats.cartItems || 0,
-          icon: FaShoppingCart,
-          color: 'text-purple-600',
-          bgColor: 'bg-purple-50',
-          change: '+1',
+          title: 'Total Spending',
+          value: formatCurrency(stats.totalSpending || 0),
+          icon: FaMoneyBillWave,
+          color: 'text-green-600',
+          bgColor: 'bg-green-50',
+          change: '+8%',
           changeType: 'increase',
-          href: '/dashboard/cart'
+          href: '/dashboard/orders'
         }
       );
     }
@@ -219,6 +226,7 @@ export default function Dashboard() {
     return baseStats;
   };
 
+  // ... rest of your dashboard component remains the same ...
   const getRoleBasedActions = () => {
     const allActions = [
       { href: '/dashboard/orders', label: 'Manage Orders', icon: FaShoppingCart, color: 'bg-blue-500' },

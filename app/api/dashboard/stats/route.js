@@ -1,4 +1,4 @@
-// app/api/dashboard/stats/route.js
+// /Users/jafar/Desktop/turboessen/app/api/dashboard/stats/route.js
 import { getServerSession } from "next-auth/next";
 import authOptions from "@/lib/authOptions";
 import dbConnect from '@/lib/dbConnect';
@@ -22,7 +22,7 @@ export async function GET(request) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const timeframe = searchParams.get('timeframe') || 'month'; // day, week, month, year
+    const timeframe = searchParams.get('timeframe') || 'month';
 
     let stats = {};
     const now = new Date();
@@ -47,12 +47,12 @@ export async function GET(request) {
     }
 
     if (session.user.role === 'admin') {
-      // Admin statistics
+      // Admin statistics - FIXED REVENUE CALCULATION
       const [
         totalUsers,
         totalRestaurants,
         totalOrders,
-        totalRevenue,
+        totalRevenueAggregation, // Changed this
         pendingApplications,
         pendingReports,
         recentUsers,
@@ -61,6 +61,7 @@ export async function GET(request) {
         User.countDocuments(),
         Restaurant.countDocuments({ isActive: true }),
         Order.countDocuments({ createdAt: { $gte: startDate } }),
+        // FIXED: Use aggregation for revenue to match restaurants management page
         Order.aggregate([
           { 
             $match: { 
@@ -68,7 +69,12 @@ export async function GET(request) {
               createdAt: { $gte: startDate }
             }
           },
-          { $group: { _id: null, total: { $sum: '$total' } } }
+          { 
+            $group: { 
+              _id: null, 
+              total: { $sum: '$total' } 
+            } 
+          }
         ]),
         Application.countDocuments({ status: 'pending' }),
         Report.countDocuments({ status: 'pending' }),
@@ -78,11 +84,14 @@ export async function GET(request) {
           .populate('restaurantId', 'name')
       ]);
 
+      // FIXED: Extract revenue from aggregation result
+      const totalRevenue = totalRevenueAggregation.length > 0 ? totalRevenueAggregation[0].total : 0;
+
       stats = {
         totalUsers,
         totalRestaurants,
         totalOrders: totalOrders || 0,
-        totalRevenue: totalRevenue[0]?.total || 0,
+        totalRevenue: totalRevenue, // Use the corrected revenue
         pendingApplications,
         pendingReports,
         recentUsers,
@@ -103,7 +112,7 @@ export async function GET(request) {
       if (restaurant) {
         const [
           totalOrders,
-          totalRevenue,
+          totalRevenueAggregation, // Changed this
           averageRating,
           pendingOrders,
           recentOrders
@@ -112,6 +121,7 @@ export async function GET(request) {
             restaurantId: restaurant._id,
             createdAt: { $gte: startDate }
           }),
+          // FIXED: Use aggregation for restaurant revenue
           Order.aggregate([
             { 
               $match: { 
@@ -120,7 +130,12 @@ export async function GET(request) {
                 createdAt: { $gte: startDate }
               }
             },
-            { $group: { _id: null, total: { $sum: '$total' } } }
+            { 
+              $group: { 
+                _id: null, 
+                total: { $sum: '$total' } 
+              } 
+            }
           ]),
           Review.aggregate([
             { $match: { restaurantId: restaurant._id } },
@@ -138,9 +153,12 @@ export async function GET(request) {
             .populate('userId', 'firstName lastName')
         ]);
 
+        // FIXED: Extract revenue from aggregation result
+        const totalRevenue = totalRevenueAggregation.length > 0 ? totalRevenueAggregation[0].total : 0;
+
         stats = {
           totalOrders: totalOrders || 0,
-          totalRevenue: totalRevenue[0]?.total || 0,
+          totalRevenue: totalRevenue, // Use the corrected revenue
           averageRating: averageRating[0]?.average || 0,
           pendingOrders,
           restaurantName: restaurant.name,
@@ -160,7 +178,8 @@ export async function GET(request) {
         totalOrders,
         pendingOrders,
         totalReviews,
-        cartItems
+        cartItems,
+        userRevenueAggregation // Added for user revenue
       ] = await Promise.all([
         Order.countDocuments({ userId: session.user.id }),
         Order.countDocuments({ 
@@ -173,14 +192,34 @@ export async function GET(request) {
           headers: {
             'Cookie': request.headers.get('cookie')
           }
-        }).then(res => res.json()).then(data => data.itemCount || 0).catch(() => 0)
+        }).then(res => res.json()).then(data => data.itemCount || 0).catch(() => 0),
+        // FIXED: Add user spending calculation
+        Order.aggregate([
+          { 
+            $match: { 
+              userId: session.user.id,
+              status: 'delivered',
+              createdAt: { $gte: startDate }
+            }
+          },
+          { 
+            $group: { 
+              _id: null, 
+              total: { $sum: '$total' } 
+            } 
+          }
+        ])
       ]);
+
+      // FIXED: Extract user spending from aggregation
+      const totalSpending = userRevenueAggregation.length > 0 ? userRevenueAggregation[0].total : 0;
 
       stats = {
         totalOrders,
         pendingOrders,
         totalReviews,
         cartItems,
+        totalSpending, // Add user spending to stats
         role: 'user'
       };
     }
