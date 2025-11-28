@@ -1,4 +1,4 @@
-// components/DeliveryMap.js (simplified version)
+// components/DeliveryMap.js (updated version)
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useGoogleMaps } from '@/hooks/useGoogleMaps';
@@ -43,7 +43,6 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
           lng: e.latLng.lng()
         };
         updateMarkerPosition(location);
-        getAddressFromCoordinates(location);
       });
 
       // Add drag end listener to marker
@@ -52,7 +51,8 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
           lat: marker.getPosition().lat(),
           lng: marker.getPosition().lng()
         };
-        getAddressFromCoordinates(location);
+        // Only update coordinates, not address
+        handleFormChange();
       });
 
       // Try to get user's current location
@@ -65,14 +65,14 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
             };
             map.setCenter(userLocation);
             updateMarkerPosition(userLocation);
-            getAddressFromCoordinates(userLocation);
           },
           () => {
-            getAddressFromCoordinates(defaultLocation);
+            // If geolocation fails, just center on default location
+            updateMarkerPosition(defaultLocation);
           }
         );
       } else {
-        getAddressFromCoordinates(defaultLocation);
+        updateMarkerPosition(defaultLocation);
       }
 
     } catch (error) {
@@ -98,35 +98,11 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
     }
   };
 
-  const getAddressFromCoordinates = async (location) => {
-    try {
-      const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ location }, (results, status) => {
-        if (status === 'OK' && results[0]) {
-          const address = results[0].formatted_address;
-          setAddress(address);
-          
-          if (onLocationSelect) {
-            onLocationSelect({
-              address,
-              coordinates: location,
-              apartment,
-              floor,
-              instructions
-            });
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Error getting address:', error);
-    }
-  };
-
   const handleFormChange = () => {
     if (markerRef.current && onLocationSelect) {
       const location = markerRef.current.getPosition();
       onLocationSelect({
-        address,
+        address, // Use the user-entered address
         coordinates: {
           lat: location.lat(),
           lng: location.lng()
@@ -138,11 +114,96 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
     }
   };
 
+  // Handle address input change
+  const handleAddressChange = (e) => {
+    const newAddress = e.target.value;
+    setAddress(newAddress);
+    // Trigger form change with new address
+    setTimeout(handleFormChange, 0);
+  };
+
+  // Handle other field changes
+  const handleFieldChange = (field, value) => {
+    switch (field) {
+      case 'apartment':
+        setApartment(value);
+        break;
+      case 'floor':
+        setFloor(value);
+        break;
+      case 'instructions':
+        setInstructions(value);
+        break;
+    }
+    setTimeout(handleFormChange, 0);
+  };
+
   if (mapsError) {
     return (
-      <div className="w-full h-64 bg-red-50 rounded-lg flex items-center justify-center">
-        <div className="text-center text-red-600">
-          <p>Error loading map: {mapsError.message}</p>
+      <div className="space-y-4">
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <h3 className="font-semibold text-blue-900 mb-2">📍 Delivery Information</h3>
+          <p className="text-blue-700 text-sm">
+            Please provide your delivery address and instructions below.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Delivery Address *
+          </label>
+          <input
+            type="text"
+            value={address}
+            onChange={handleAddressChange}
+            placeholder="Enter your full delivery address"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Please provide your complete delivery address
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Apartment/Unit
+            </label>
+            <input
+              type="text"
+              value={apartment}
+              onChange={(e) => handleFieldChange('apartment', e.target.value)}
+              placeholder="e.g., Apt 4B"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Floor
+            </label>
+            <input
+              type="text"
+              value={floor}
+              onChange={(e) => handleFieldChange('floor', e.target.value)}
+              placeholder="e.g., 3rd floor"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Delivery Instructions (Optional)
+          </label>
+          <textarea
+            value={instructions}
+            onChange={(e) => handleFieldChange('instructions', e.target.value)}
+            rows="3"
+            placeholder="e.g., Ring doorbell, leave at door, call when arrived..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
         </div>
       </div>
     );
@@ -150,10 +211,74 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
 
   if (!isLoaded) {
     return (
-      <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading map...</p>
+      <div className="space-y-4">
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <h3 className="font-semibold text-blue-900 mb-2">📍 Delivery Information</h3>
+          <p className="text-blue-700 text-sm">
+            Please provide your delivery address and instructions below.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Delivery Address *
+          </label>
+          <input
+            type="text"
+            value={address}
+            onChange={handleAddressChange}
+            placeholder="Enter your full delivery address"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          />
+        </div>
+
+        <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading map...</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Apartment/Unit
+            </label>
+            <input
+              type="text"
+              value={apartment}
+              onChange={(e) => handleFieldChange('apartment', e.target.value)}
+              placeholder="e.g., Apt 4B"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Floor
+            </label>
+            <input
+              type="text"
+              value={floor}
+              onChange={(e) => handleFieldChange('floor', e.target.value)}
+              placeholder="e.g., 3rd floor"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Delivery Instructions (Optional)
+          </label>
+          <textarea
+            value={instructions}
+            onChange={(e) => handleFieldChange('instructions', e.target.value)}
+            rows="3"
+            placeholder="e.g., Ring doorbell, leave at door, call when arrived..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
         </div>
       </div>
     );
@@ -162,10 +287,33 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
   return (
     <div className="space-y-4">
       <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-        <h3 className="font-semibold text-blue-900 mb-2">📍 Set Delivery Location</h3>
+        <h3 className="font-semibold text-blue-900 mb-2">📍 Delivery Information</h3>
         <p className="text-blue-700 text-sm">
-          Click on the map or drag the marker to set your exact delivery location.
-          You can also use your current location (automatically detected if available).
+          Please provide your delivery address below. The map is optional and can be used to help the driver locate your building.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Delivery Address *
+        </label>
+        <input
+          type="text"
+          value={address}
+          onChange={handleAddressChange}
+          placeholder="Enter your full delivery address (street, city, zip code)"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          required
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Please provide your complete delivery address including street number, street name, city, and zip code
+        </p>
+      </div>
+
+      <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+        <h4 className="font-semibold text-amber-900 mb-2">🗺️ Optional: Set Building Location on Map</h4>
+        <p className="text-amber-700 text-sm">
+          You can click on the map to mark your building location. This helps the driver but is not required.
         </p>
       </div>
 
@@ -175,15 +323,6 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
         style={{ minHeight: '256px' }}
       />
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Delivery Address
-        </label>
-        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-          <p className="text-gray-800">{address || 'Click on the map to set location'}</p>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -192,10 +331,7 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
           <input
             type="text"
             value={apartment}
-            onChange={(e) => {
-              setApartment(e.target.value);
-              handleFormChange();
-            }}
+            onChange={(e) => handleFieldChange('apartment', e.target.value)}
             placeholder="e.g., Apt 4B"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -208,10 +344,7 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
           <input
             type="text"
             value={floor}
-            onChange={(e) => {
-              setFloor(e.target.value);
-              handleFormChange();
-            }}
+            onChange={(e) => handleFieldChange('floor', e.target.value)}
             placeholder="e.g., 3rd floor"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -224,10 +357,7 @@ export default function DeliveryMap({ onLocationSelect, initialLocation }) {
         </label>
         <textarea
           value={instructions}
-          onChange={(e) => {
-            setInstructions(e.target.value);
-            handleFormChange();
-          }}
+          onChange={(e) => handleFieldChange('instructions', e.target.value)}
           rows="3"
           placeholder="e.g., Ring doorbell, leave at door, call when arrived..."
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
