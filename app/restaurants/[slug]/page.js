@@ -4,6 +4,9 @@ import RestaurantMenu from '@/components/RestaurantMenu';
 import Navbar from '@/components/Navbar';
 import RestaurantReviews from '@/components/RestaurantReviews';
 import ReportButton from '@/components/ReportButton';
+import LoyaltyProgramDisplay from '@/components/LoyaltyProgramDisplay';
+import { getServerSession } from 'next-auth';
+import authOptions from '@/lib/authOptions';
 
 async function getRestaurantById(id) {
   try {
@@ -75,30 +78,26 @@ async function getRestaurantReviews(slug) {
   }
 }
 
-// Check if string is a valid MongoDB ID
 function isValidObjectId(str) {
   return /^[0-9a-fA-F]{24}$/.test(str);
 }
 
 export default async function RestaurantPage({ params }) {
   const { slug } = await params;
+  const session = await getServerSession(authOptions);
   
   let restaurant;
   
-  // Check if the parameter is an ID (MongoDB ObjectId)
   if (isValidObjectId(slug)) {
     restaurant = await getRestaurantById(slug);
     
-    // If we found a restaurant by ID and it has a slug, redirect to the slug URL
     if (restaurant && restaurant.slug) {
       redirect(`/restaurants/${restaurant.slug}`);
     }
   } else {
-    // It's a slug, try to fetch by slug
     restaurant = await getRestaurantBySlug(slug);
   }
 
-  // If no restaurant found by either method
   if (!restaurant) {
     notFound();
   }
@@ -162,7 +161,7 @@ export default async function RestaurantPage({ params }) {
               <div className="flex-1 text-center md:text-left pb-6 md:pb-8">
                 <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-amber-100 relative">
                   
-                  {/* Report Button - Positioned in top right corner */}
+                  {/* Report Button */}
                   <div className="absolute top-4 right-4">
                     <ReportButton 
                       targetType="restaurant"
@@ -216,8 +215,13 @@ export default async function RestaurantPage({ params }) {
           </div>
         </div>
 
+        {/* Loyalty Program Display */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          <LoyaltyProgramDisplay restaurant={restaurant} />
+        </div>
+
         {/* Restaurant Menu */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <RestaurantMenu
             restaurant={restaurant}
             dishes={dishes}

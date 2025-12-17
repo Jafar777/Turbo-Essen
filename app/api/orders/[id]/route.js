@@ -194,3 +194,53 @@ export async function GET(request, { params }) {
     );
   }
 }
+
+const updateUserLoyalty = async (userId, restaurantId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    let loyaltyStat = user.loyaltyStats?.find(
+      stat => stat.restaurantId.toString() === restaurantId
+    );
+
+    if (!loyaltyStat) {
+      loyaltyStat = {
+        restaurantId,
+        orderCount: 0,
+        lastOrderDate: null,
+        earnedDiscounts: []
+      };
+      if (!user.loyaltyStats) user.loyaltyStats = [];
+      user.loyaltyStats.push(loyaltyStat);
+    }
+
+    loyaltyStat.orderCount += 1;
+    loyaltyStat.lastOrderDate = new Date();
+
+    // Check if user reached threshold
+    const restaurant = await Restaurant.findById(restaurantId).select('loyaltySystem');
+    if (restaurant?.loyaltySystem?.isActive) {
+      const threshold = restaurant.loyaltySystem.ordersThreshold;
+      if (loyaltyStat.orderCount >= threshold) {
+        // Reset count and give discount
+        loyaltyStat.orderCount = 0;
+        loyaltyStat.earnedDiscounts.push({
+          dateEarned: new Date(),
+          discountPercentage: restaurant.loyaltySystem.discountPercentage,
+          used: false
+        });
+      }
+    }
+
+    await user.save();
+  } catch (error) {
+    console.error('Error updating user loyalty:', error);
+  }
+};
+
+// Call this function when an order is delivered
+// In the PUT handler, after updating order status:
+if (status === 'delivered') {
+  updateUserLoyalty(order.userId, order.restaurantId);
+}

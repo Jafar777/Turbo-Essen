@@ -25,7 +25,28 @@ const TableSchema = new mongoose.Schema({
     default: 'main'
   }
 });
-
+const LoyaltySystemSchema = new mongoose.Schema({
+  isActive: {
+    type: Boolean,
+    default: false
+  },
+  ordersThreshold: {
+    type: Number,
+    default: 5,
+    min: 1,
+    max: 100
+  },
+  discountPercentage: {
+    type: Number,
+    default: 10,
+    min: 1,
+    max: 100
+  },
+  description: {
+    type: String,
+    default: "Get a discount after placing a certain number of orders!"
+  }
+});
 const RestaurantSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -153,7 +174,16 @@ const RestaurantSchema = new mongoose.Schema({
     3: { type: Number, default: 0 },
     4: { type: Number, default: 0 },
     5: { type: Number, default: 0 }
-  }
+  },
+    loyaltySystem: {
+    type: LoyaltySystemSchema,
+    default: () => ({
+      isActive: false,
+      ordersThreshold: 5,
+      discountPercentage: 10,
+      description: "Get a discount after placing a certain number of orders!"
+    })
+  },
 }, {
   timestamps: true
 });

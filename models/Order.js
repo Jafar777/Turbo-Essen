@@ -84,6 +84,14 @@ const OrderSchema = new mongoose.Schema({
     ref: 'Restaurant',
     required: true
   },
+    loyaltyDiscountApplied: {
+    type: Boolean,
+    default: false
+  },
+  loyaltyDiscountPercentage: {
+    type: Number,
+    default: 0
+  },
   restaurantName: {
     type: String,
     required: true

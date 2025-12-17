@@ -1,5 +1,28 @@
 // models/User.js
 import mongoose from 'mongoose';
+const UserLoyaltySchema = new mongoose.Schema({
+  restaurantId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Restaurant',
+    required: true
+  },
+  orderCount: {
+    type: Number,
+    default: 0
+  },
+  lastOrderDate: {
+    type: Date
+  },
+  earnedDiscounts: [{
+    dateEarned: Date,
+    discountPercentage: Number,
+    used: {
+      type: Boolean,
+      default: false
+    }
+  }]
+});
+
 
 const UserSchema = new mongoose.Schema({
   firstName: {
@@ -30,6 +53,7 @@ const UserSchema = new mongoose.Schema({
     enum: ['admin', 'restaurant_owner', 'chef', 'waiter', 'delivery', 'user'],
     default: 'user'
   },
+  loyaltyStats: [UserLoyaltySchema],
   // Add restaurantId for employees (chef, waiter, delivery)
   restaurantId: {
     type: mongoose.Schema.Types.ObjectId,

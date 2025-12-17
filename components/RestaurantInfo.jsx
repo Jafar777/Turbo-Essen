@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { CldUploadWidget } from 'next-cloudinary';
-import { FiSettings, FiImage, FiClock, FiInfo, FiTag, FiUpload, FiX, FiCheck, FiAlertCircle, FiTruck } from 'react-icons/fi';
+import { FiSettings, FiImage, FiClock, FiInfo, FiTag, FiUpload, FiX, FiCheck, FiAlertCircle, FiTruck, FiAward } from 'react-icons/fi';
 import { IoTimeOutline } from 'react-icons/io5';
 
 export default function RestaurantInfo({ restaurant, onUpdate }) {
@@ -25,7 +25,6 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
       saturday: { open: '10:00', close: '23:00', closed: false },
       sunday: { open: '10:00', close: '21:00', closed: false }
     },
-
     deliveryTime: {
       min: 30,
       max: 45
@@ -33,6 +32,15 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
     deliveryFee: 2.99,
     freeDeliveryThreshold: 25
   });
+
+  const [loyaltySystem, setLoyaltySystem] = useState({
+    isActive: false,
+    ordersThreshold: 5,
+    discountPercentage: 10,
+    description: "Get a discount after placing a certain number of orders!"
+  });
+  
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
 
   // Promo code management state
   const [promoForm, setPromoForm] = useState({
@@ -58,7 +66,7 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
   const [bannerUrl, setBannerUrl] = useState('');
   const [suddenCloseLoading, setSuddenCloseLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('status');
-const [actualTables, setActualTables] = useState([]);
+  const [actualTables, setActualTables] = useState([]);
 
   const scrollPositionRef = useRef(0);
   const formRef = useRef(null);
@@ -71,39 +79,79 @@ const [actualTables, setActualTables] = useState([]);
     };
   }, []);
 
-useEffect(() => {
-  if (restaurant) {
-    setFormData({
-      name: restaurant.name || '',
-      description: restaurant.description || '',
-      address: restaurant.address || '',
-      phone: restaurant.phone || '',
-      cuisineType: restaurant.cuisineType || '',
-      totalTables: restaurant.tables?.length || 10, // Use actual tables length
-      availableTables: restaurant.availableTables || 10,
-      isOpen: restaurant.isOpen !== undefined ? restaurant.isOpen : true,
-      orderTypes: restaurant.orderTypes || ['dine_in', 'delivery', 'takeaway'],
-      openingHours: restaurant.openingHours || {
-        monday: { open: '09:00', close: '22:00', closed: false },
-        tuesday: { open: '09:00', close: '22:00', closed: false },
-        wednesday: { open: '09:00', close: '22:00', closed: false },
-        thursday: { open: '09:00', close: '22:00', closed: false },
-        friday: { open: '09:00', close: '23:00', closed: false },
-        saturday: { open: '10:00', close: '23:00', closed: false },
-        sunday: { open: '10:00', close: '21:00', closed: false }
-      },
-      deliveryTime: restaurant.deliveryTime || { min: 30, max: 45 },
-      deliveryFee: restaurant.deliveryFee ?? 2.99,
-      freeDeliveryThreshold: restaurant.freeDeliveryThreshold || 25
-    });
-    setAvatarUrl(restaurant.avatar || '');
-    setBannerUrl(restaurant.banner || '');
-    setActualTables(restaurant.tables || []);
-    fetchPromoCodes();
-  }
-}, [restaurant]);
+  useEffect(() => {
+    if (restaurant) {
+      setFormData({
+        name: restaurant.name || '',
+        description: restaurant.description || '',
+        address: restaurant.address || '',
+        phone: restaurant.phone || '',
+        cuisineType: restaurant.cuisineType || '',
+        totalTables: restaurant.tables?.length || 10,
+        availableTables: restaurant.availableTables || 10,
+        isOpen: restaurant.isOpen !== undefined ? restaurant.isOpen : true,
+        orderTypes: restaurant.orderTypes || ['dine_in', 'delivery', 'takeaway'],
+        openingHours: restaurant.openingHours || {
+          monday: { open: '09:00', close: '22:00', closed: false },
+          tuesday: { open: '09:00', close: '22:00', closed: false },
+          wednesday: { open: '09:00', close: '22:00', closed: false },
+          thursday: { open: '09:00', close: '22:00', closed: false },
+          friday: { open: '09:00', close: '23:00', closed: false },
+          saturday: { open: '10:00', close: '23:00', closed: false },
+          sunday: { open: '10:00', close: '21:00', closed: false }
+        },
+        deliveryTime: restaurant.deliveryTime || { min: 30, max: 45 },
+        deliveryFee: restaurant.deliveryFee ?? 2.99,
+        freeDeliveryThreshold: restaurant.freeDeliveryThreshold || 25
+      });
+      setAvatarUrl(restaurant.avatar || '');
+      setBannerUrl(restaurant.banner || '');
+      setActualTables(restaurant.tables || []);
+      setLoyaltySystem(restaurant.loyaltySystem || {
+        isActive: false,
+        ordersThreshold: 5,
+        discountPercentage: 10,
+        description: "Get a discount after placing a certain number of orders!"
+      });
+      fetchPromoCodes();
+    }
+  }, [restaurant]);
 
-  // Helper function to safely parse time strings
+  const handleLoyaltyChange = (field, value) => {
+    setLoyaltySystem(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveLoyaltySystem = async () => {
+    if (!restaurant) return;
+
+    setLoyaltyLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const response = await fetch(`/api/restaurants/${restaurant._id}/loyalty`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loyaltySystem)
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Loyalty system updated successfully!' });
+        onUpdate();
+      } else {
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.error || 'Failed to update loyalty system' });
+      }
+    } catch (error) {
+      console.error('Error updating loyalty system:', error);
+      setMessage({ type: 'error', text: 'Error updating loyalty system' });
+    } finally {
+      setLoyaltyLoading(false);
+    }
+  };
+
   const parseTimeToMinutes = (timeString, fallback = '00:00') => {
     if (!timeString || typeof timeString !== 'string') {
       timeString = fallback;
@@ -246,7 +294,6 @@ useEffect(() => {
     return `${formattedHour}:${minutes} ${ampm}`;
   };
 
-  // Add sudden close functionality
   const handleSuddenClose = async () => {
     if (!restaurant) return;
 
@@ -278,7 +325,7 @@ useEffect(() => {
       setSuddenCloseLoading(false);
     }
   };
-  // Save delivery settings to database
+
   const handleSaveDeliverySettings = async () => {
     if (!restaurant) return;
 
@@ -310,7 +357,7 @@ useEffect(() => {
       setLoading(false);
     }
   };
-  // Add opening hours handlers
+
   const handleOpeningHoursChange = (day, field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -324,7 +371,6 @@ useEffect(() => {
     }));
   };
 
-  // Save opening hours to database
   const handleSaveOpeningHours = async () => {
     if (!restaurant) return;
 
@@ -355,7 +401,6 @@ useEffect(() => {
     }
   };
 
-  // Save order types to database
   const handleSaveOrderTypes = async () => {
     if (!restaurant) return;
 
@@ -386,7 +431,6 @@ useEffect(() => {
     }
   };
 
-  // Reset opening hours to original values
   const handleResetOpeningHours = () => {
     if (restaurant && restaurant.openingHours) {
       setFormData(prev => ({
@@ -397,7 +441,6 @@ useEffect(() => {
     }
   };
 
-  // Reset order types to original values
   const handleResetOrderTypes = () => {
     if (restaurant) {
       setFormData(prev => ({
@@ -501,57 +544,54 @@ useEffect(() => {
     }));
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setMessage({ type: '', text: '' });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage({ type: '', text: '' });
 
-  try {
-    // Prepare update data with tables array
-    const updateData = {
-      name: formData.name,
-      description: formData.description,
-      address: formData.address,
-      phone: formData.phone,
-      cuisineType: formData.cuisineType,
-      isOpen: formData.isOpen,
-      orderTypes: formData.orderTypes,
-      openingHours: formData.openingHours,
-      deliveryTime: formData.deliveryTime,
-      deliveryFee: formData.deliveryFee,
-      freeDeliveryThreshold: formData.freeDeliveryThreshold,
-      avatar: avatarUrl,
-      banner: bannerUrl,
-      // Don't send totalTables or availableTables - they're handled by the tables array
-    };
+    try {
+      const updateData = {
+        name: formData.name,
+        description: formData.description,
+        address: formData.address,
+        phone: formData.phone,
+        cuisineType: formData.cuisineType,
+        isOpen: formData.isOpen,
+        orderTypes: formData.orderTypes,
+        openingHours: formData.openingHours,
+        deliveryTime: formData.deliveryTime,
+        deliveryFee: formData.deliveryFee,
+        freeDeliveryThreshold: formData.freeDeliveryThreshold,
+        avatar: avatarUrl,
+        banner: bannerUrl,
+      };
 
-    // Only send totalTables if it's different from current restaurant
-    if (restaurant && formData.totalTables !== restaurant.totalTables) {
-      updateData.totalTables = formData.totalTables;
+      if (restaurant && formData.totalTables !== restaurant.totalTables) {
+        updateData.totalTables = formData.totalTables;
+      }
+
+      const response = await fetch(`/api/restaurants/${restaurant._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Restaurant information updated successfully!' });
+        onUpdate();
+      } else {
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.error || 'Failed to update restaurant information' });
+      }
+    } catch (error) {
+      console.error('Error updating restaurant:', error);
+      setMessage({ type: 'error', text: 'Error updating restaurant information' });
+    } finally {
+      setLoading(false);
     }
-
-    const response = await fetch(`/api/restaurants/${restaurant._id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updateData),
-    });
-
-    if (response.ok) {
-      setMessage({ type: 'success', text: 'Restaurant information updated successfully!' });
-      onUpdate();
-    } else {
-      const errorData = await response.json();
-      setMessage({ type: 'error', text: errorData.error || 'Failed to update restaurant information' });
-    }
-  } catch (error) {
-    console.error('Error updating restaurant:', error);
-    setMessage({ type: 'error', text: 'Error updating restaurant information' });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleTogglePromoStatus = async (promoId, currentStatus) => {
     try {
@@ -625,9 +665,10 @@ const handleSubmit = async (e) => {
     { id: 'images', label: 'Brand Assets', icon: FiImage },
     { id: 'hours', label: 'Operating Hours', icon: FiClock },
     { id: 'orderTypes', label: 'Order Types', icon: FiTag },
-    { id: 'delivery', label: 'Delivery Settings', icon: FiTruck }, // Add this line
+    { id: 'delivery', label: 'Delivery Settings', icon: FiTruck },
     { id: 'info', label: 'Business Profile', icon: FiInfo },
     { id: 'promotions', label: 'Promotions', icon: FiTag },
+    { id: 'loyalty', label: 'Loyalty Program', icon: FiAward },
   ];
 
   return (
@@ -1153,6 +1194,7 @@ const handleSubmit = async (e) => {
               </div>
             )}
 
+            {/* Delivery Settings Section */}
             {activeSection === 'delivery' && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-8">
@@ -1430,59 +1472,58 @@ const handleSubmit = async (e) => {
                       />
                     </div>
 
+                    {/* Table Management */}
+                    <div className="pt-8 border-t border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-6">Table Configuration</h3>
 
-{/* Table Management */}
-<div className="pt-8 border-t border-gray-200">
-  <h3 className="text-lg font-semibold text-gray-900 mb-6">Table Configuration</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-3">
+                            Total Number of Tables
+                          </label>
+                          <input
+                            type="number"
+                            name="totalTables"
+                            min="1"
+                            max="50"
+                            value={formData.totalTables}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Set the total number of tables in your restaurant
+                          </p>
+                        </div>
 
-  <div className="space-y-4">
-    <div>
-      <label className="block text-sm font-semibold text-gray-900 mb-3">
-        Total Number of Tables
-      </label>
-      <input
-        type="number"
-        name="totalTables"
-        min="1"
-        max="50"
-        value={formData.totalTables}
-        onChange={handleInputChange}
-        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-      />
-      <p className="text-sm text-gray-500 mt-1">
-        Set the total number of tables in your restaurant
-      </p>
-    </div>
-
-    <div className="p-4 bg-blue-50 rounded-xl">
-      <h4 className="font-semibold text-blue-900 mb-2">Table Layout Preview</h4>
-      <div className="grid grid-cols-5 gap-2">
-        {Array.from({ length: Math.min(formData.totalTables, 25) }).map((_, i) => (
-          <div key={i} className="relative">
-            <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center mx-auto border-2 border-blue-300">
-              <span className="font-bold text-blue-800">{i + 1}</span>
-            </div>
-            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
-              <div className="flex space-x-1">
-                {[...Array(4)].map((_, chairIndex) => (
-                  <div key={chairIndex} className="w-2 h-3 bg-blue-600 rounded-sm"></div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      {formData.totalTables > 25 && (
-        <p className="text-sm text-gray-600 mt-2 text-center">
-          +{formData.totalTables - 25} more tables
-        </p>
-      )}
-      <p className="text-sm text-blue-700 mt-3">
-        Tables are configured with 4 chairs by default. Waiters can adjust individual table settings in their dashboard.
-      </p>
-    </div>
-  </div>
-</div>
+                        <div className="p-4 bg-blue-50 rounded-xl">
+                          <h4 className="font-semibold text-blue-900 mb-2">Table Layout Preview</h4>
+                          <div className="grid grid-cols-5 gap-2">
+                            {Array.from({ length: Math.min(formData.totalTables, 25) }).map((_, i) => (
+                              <div key={i} className="relative">
+                                <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center mx-auto border-2 border-blue-300">
+                                  <span className="font-bold text-blue-800">{i + 1}</span>
+                                </div>
+                                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+                                  <div className="flex space-x-1">
+                                    {[...Array(4)].map((_, chairIndex) => (
+                                      <div key={chairIndex} className="w-2 h-3 bg-blue-600 rounded-sm"></div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {formData.totalTables > 25 && (
+                            <p className="text-sm text-gray-600 mt-2 text-center">
+                              +{formData.totalTables - 25} more tables
+                            </p>
+                          )}
+                          <p className="text-sm text-blue-700 mt-3">
+                            Tables are configured with 4 chairs by default. Waiters can adjust individual table settings in their dashboard.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
                     <div className="flex justify-end space-x-4 pt-8 border-t border-gray-200">
                       <button
@@ -1752,6 +1793,191 @@ const handleSubmit = async (e) => {
                         <p className="text-gray-600 mt-2">Create your first promotion to attract more customers!</p>
                       </div>
                     )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Loyalty Program Section */}
+            {activeSection === 'loyalty' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-8">
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-gray-900">Loyalty Program</h2>
+                    <p className="text-gray-600 mt-1">Reward your loyal customers with discounts</p>
+                  </div>
+
+                  <div className="space-y-8">
+                    {/* Enable/Disable Section */}
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                            <FiAward className="w-5 h-5 mr-2 text-purple-500" />
+                            Program Status
+                          </h3>
+                          <p className="text-gray-600 mt-1 text-sm">
+                            Turn the loyalty program on or off for your restaurant
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={loyaltySystem.isActive}
+                            onChange={(e) => handleLoyaltyChange('isActive', e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
+                          <span className="ml-3 text-sm font-medium text-gray-900">
+                            {loyaltySystem.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </label>
+                      </div>
+
+                      {loyaltySystem.isActive && (
+                        <div className="mt-4 p-4 bg-white rounded-lg border border-purple-200">
+                          <div className="flex items-center">
+                            <FiInfo className="w-5 h-5 text-purple-500 mr-2" />
+                            <p className="text-sm text-purple-700">
+                              Your loyalty program is active and visible to customers on your restaurant page.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Settings Section */}
+                    {loyaltySystem.isActive && (
+                      <>
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-900 mb-2">
+                              Orders Required
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={loyaltySystem.ordersThreshold}
+                                onChange={(e) => handleLoyaltyChange('ordersThreshold', parseInt(e.target.value) || 1)}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                              />
+                              <div className="absolute right-3 top-3 text-gray-500">
+                                orders
+                              </div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Number of orders customers need to place to earn a discount
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-900 mb-2">
+                              Discount Reward
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={loyaltySystem.discountPercentage}
+                                onChange={(e) => handleLoyaltyChange('discountPercentage', parseInt(e.target.value) || 1)}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                              />
+                              <div className="absolute right-3 top-3 text-gray-500">
+                                %
+                              </div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Percentage discount customers receive upon reaching the threshold
+                            </p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">
+                            Program Description
+                          </label>
+                          <textarea
+                            value={loyaltySystem.description}
+                            onChange={(e) => handleLoyaltyChange('description', e.target.value)}
+                            rows={3}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                            placeholder="Describe your loyalty program to customers..."
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            This text appears on your restaurant page to explain the loyalty program
+                          </p>
+                        </div>
+
+                        {/* Preview Section */}
+                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl p-6 text-white">
+                          <h3 className="text-lg font-bold mb-4">Program Preview</h3>
+                          <div className="space-y-4">
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-semibold">Loyalty Reward</span>
+                                <span className="bg-white text-purple-600 px-3 py-1 rounded-full text-sm font-bold">
+                                  {loyaltySystem.discountPercentage}% OFF
+                                </span>
+                              </div>
+                              <p className="text-sm opacity-90">{loyaltySystem.description}</p>
+                              <div className="mt-4">
+                                <div className="flex justify-between text-sm mb-1">
+                                  <span>Progress</span>
+                                  <span>0/{loyaltySystem.ordersThreshold} orders</span>
+                                </div>
+                                <div className="h-2 bg-white/30 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-white rounded-full transition-all duration-500"
+                                    style={{ width: '0%' }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-sm opacity-90">
+                              Customers will see this on your restaurant page. Each order brings them closer to their discount!
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Save Button */}
+                    <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (restaurant) {
+                            setLoyaltySystem(restaurant.loyaltySystem || {
+                              isActive: false,
+                              ordersThreshold: 5,
+                              discountPercentage: 10,
+                              description: "Get a discount after placing a certain number of orders!"
+                            });
+                          }
+                        }}
+                        className="px-6 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-xl transition-colors duration-200"
+                      >
+                        Reset Changes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveLoyaltySystem}
+                        disabled={loyaltyLoading}
+                        className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                      >
+                        {loyaltyLoading ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Saving Loyalty Program...
+                          </div>
+                        ) : (
+                          'Save Loyalty Program'
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

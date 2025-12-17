@@ -1,10 +1,9 @@
 // components/RestaurantCard.jsx
 import Link from 'next/link';
-import { FiStar, FiMapPin, FiClock } from 'react-icons/fi';
+import { FiStar, FiMapPin, FiClock, FiAward } from 'react-icons/fi';
 import { IoTimeOutline } from "react-icons/io5";
 
 export default function RestaurantCard({ restaurant }) {
-  // Format time to 12-hour format
   const formatTime = (time) => {
     if (!time) return '';
     const [hours, minutes] = time.split(':');
@@ -15,13 +14,13 @@ export default function RestaurantCard({ restaurant }) {
     return `${formattedHour}:${minutes} ${ampm}`;
   };
 
-    console.log('Restaurant data:', {
+  console.log('Restaurant data:', {
     name: restaurant.name,
     deliveryFee: restaurant.deliveryFee,
-    deliveryTime: restaurant.deliveryTime
+    deliveryTime: restaurant.deliveryTime,
+    loyaltySystem: restaurant.loyaltySystem
   });
 
-  // Improved time parsing function
   const parseTimeToMinutes = (timeString, fallback = '00:00') => {
     if (!timeString || typeof timeString !== 'string') {
       timeString = fallback;
@@ -30,37 +29,31 @@ export default function RestaurantCard({ restaurant }) {
     return isNaN(hours) || isNaN(minutes) ? 0 : (hours * 60 + minutes);
   };
 
-const getDeliveryFeeDisplay = () => {
-  // More robust null/undefined checking
-  const deliveryFee = restaurant.deliveryFee !== undefined && restaurant.deliveryFee !== null 
-    ? restaurant.deliveryFee 
-    : 2.99;
-  
-  // Handle cases where deliveryFee might be a string
-  const fee = parseFloat(deliveryFee);
-  
-  if (isNaN(fee)) {
-    return 'Delivery fee not set';
-  }
-  
-  if (fee === 0) {
-    return 'Free delivery';
-  }
-  
-  return `$${fee.toFixed(2)} delivery`;
-};
+  const getDeliveryFeeDisplay = () => {
+    const deliveryFee = restaurant.deliveryFee !== undefined && restaurant.deliveryFee !== null 
+      ? restaurant.deliveryFee 
+      : 2.99;
+    
+    const fee = parseFloat(deliveryFee);
+    
+    if (isNaN(fee)) {
+      return 'Delivery fee not set';
+    }
+    
+    if (fee === 0) {
+      return 'Free delivery';
+    }
+    
+    return `$${fee.toFixed(2)} delivery`;
+  };
 
-
-  // Get delivery time display
   const getDeliveryTimeDisplay = () => {
     const min = restaurant.deliveryTime?.min || 30;
     const max = restaurant.deliveryTime?.max || 45;
     return `${min}-${max} min`;
   };
 
-  // Get today's opening hours with safe defaults
   const getTodaysHours = () => {
-    // Use restaurant's openingHours if available
     const openingHours = restaurant?.openingHours;
 
     if (!openingHours) {
@@ -72,16 +65,13 @@ const getDeliveryFeeDisplay = () => {
     const todayKey = days[today];
     const todayHours = openingHours[todayKey];
 
-    // If no hours for today or restaurant is closed, return closed
     if (!todayHours || todayHours.closed) {
       return { status: 'closed', text: 'Closed today' };
     }
 
-    // Use actual restaurant hours from database
     const openTime = todayHours.open;
     const closeTime = todayHours.close;
 
-    // Validate that we have both open and close times
     if (!openTime || !closeTime) {
       return { status: 'unknown', text: 'Hours not set' };
     }
@@ -95,7 +85,6 @@ const getDeliveryFeeDisplay = () => {
   };
 
   const isCurrentlyOpen = () => {
-    // First check manual override (isOpen field)
     if (restaurant?.isOpen === false) return false;
 
     const hours = getTodaysHours();
@@ -104,20 +93,13 @@ const getDeliveryFeeDisplay = () => {
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
-    // Use safe time parsing
     const openTimeInMinutes = parseTimeToMinutes(hours.open);
     const closeTimeInMinutes = parseTimeToMinutes(hours.close);
 
-    // Handle closing times that cross midnight (like 00:00, 01:00, etc.)
     if (closeTimeInMinutes < openTimeInMinutes) {
-      // Closing time is after midnight, so we need special logic
-      // Restaurant is open if:
-      // - current time is after opening time (evening) OR
-      // - current time is before closing time (next day morning)
       return currentTime >= openTimeInMinutes || currentTime < closeTimeInMinutes;
     }
 
-    // Normal case: closing time is on the same day
     return currentTime >= openTimeInMinutes && currentTime <= closeTimeInMinutes;
   };
 
@@ -125,8 +107,10 @@ const getDeliveryFeeDisplay = () => {
   const isOpen = isCurrentlyOpen();
   const averageRating = restaurant?.averageRating || 0;
   const totalReviews = restaurant?.totalReviews || 0;
+  
+  // REMOVE THIS DUPLICATE DECLARATION:
+  // const hasLoyaltyProgram = restaurant?.loyaltySystem?.isActive;
 
-  // If restaurant data is not available yet, show loading
   if (!restaurant) {
     return (
       <div className="group bg-white rounded-2xl shadow-lg border border-gray-100 p-6 animate-pulse">
@@ -136,6 +120,15 @@ const getDeliveryFeeDisplay = () => {
       </div>
     );
   }
+
+  // Add safety check for loyaltySystem access:
+  const loyaltySystem = restaurant.loyaltySystem || {
+    isActive: false,
+    ordersThreshold: 5,
+    discountPercentage: 10,
+    description: "Get a discount after placing a certain number of orders!"
+  };
+  const hasLoyaltyProgram = loyaltySystem.isActive;
 
   return (
     <Link href={`/restaurants/${restaurant.slug}`}>
@@ -169,6 +162,14 @@ const getDeliveryFeeDisplay = () => {
               {isOpen ? 'Open Now' : 'Closed'}
             </div>
           </div>
+
+          {/* Loyalty Badge */}
+          {hasLoyaltyProgram && (
+            <div className="absolute top-3 left-24 bg-gradient-to-r from-purple-500/90 to-pink-500/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1">
+              <FiAward className="w-3 h-3 text-white" />
+              <span className="text-xs font-semibold text-white">Loyalty</span>
+            </div>
+          )}
 
           {/* Rating Badge */}
           {averageRating > 0 && (
@@ -212,12 +213,21 @@ const getDeliveryFeeDisplay = () => {
             {restaurant.name}
           </h3>
 
-          {restaurant.cuisineType && (
-            <div className="inline-flex items-center px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-semibold mb-3">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5"></span>
-              {restaurant.cuisineType}
-            </div>
-          )}
+          <div className="flex flex-wrap justify-center items-center gap-2 mb-3">
+            {restaurant.cuisineType && (
+              <div className="inline-flex items-center px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-semibold">
+                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5"></span>
+                {restaurant.cuisineType}
+              </div>
+            )}
+            
+            {hasLoyaltyProgram && (
+              <div className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 rounded-full text-xs font-semibold">
+                <FiAward className="w-3 h-3 mr-1 text-purple-600" />
+                Earn {loyaltySystem.discountPercentage}% off
+              </div>
+            )}
+          </div>
 
           {/* Delivery Info */}
           <div className="flex items-center justify-center gap-4 mb-3">
