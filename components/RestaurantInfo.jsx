@@ -58,6 +58,7 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
   const [bannerUrl, setBannerUrl] = useState('');
   const [suddenCloseLoading, setSuddenCloseLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('status');
+const [actualTables, setActualTables] = useState([]);
 
   const scrollPositionRef = useRef(0);
   const formRef = useRef(null);
@@ -70,37 +71,37 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (restaurant) {
-      setFormData({
-        name: restaurant.name || '',
-        description: restaurant.description || '',
-        address: restaurant.address || '',
-        phone: restaurant.phone || '',
-        cuisineType: restaurant.cuisineType || '',
-        totalTables: restaurant.totalTables || 10,
-        availableTables: restaurant.availableTables || 10,
-        isOpen: restaurant.isOpen !== undefined ? restaurant.isOpen : true,
-        orderTypes: restaurant.orderTypes || ['dine_in', 'delivery', 'takeaway'],
-        openingHours: restaurant.openingHours || {
-          monday: { open: '09:00', close: '22:00', closed: false },
-          tuesday: { open: '09:00', close: '22:00', closed: false },
-          wednesday: { open: '09:00', close: '22:00', closed: false },
-          thursday: { open: '09:00', close: '22:00', closed: false },
-          friday: { open: '09:00', close: '23:00', closed: false },
-          saturday: { open: '10:00', close: '23:00', closed: false },
-          sunday: { open: '10:00', close: '21:00', closed: false }
-        },
-        // Load delivery settings from restaurant
-        deliveryTime: restaurant.deliveryTime || { min: 30, max: 45 },
-        deliveryFee: restaurant.deliveryFee ?? 2.99,
-        freeDeliveryThreshold: restaurant.freeDeliveryThreshold || 25
-      });
-      setAvatarUrl(restaurant.avatar || '');
-      setBannerUrl(restaurant.banner || '');
-      fetchPromoCodes();
-    }
-  }, [restaurant]);
+useEffect(() => {
+  if (restaurant) {
+    setFormData({
+      name: restaurant.name || '',
+      description: restaurant.description || '',
+      address: restaurant.address || '',
+      phone: restaurant.phone || '',
+      cuisineType: restaurant.cuisineType || '',
+      totalTables: restaurant.tables?.length || 10, // Use actual tables length
+      availableTables: restaurant.availableTables || 10,
+      isOpen: restaurant.isOpen !== undefined ? restaurant.isOpen : true,
+      orderTypes: restaurant.orderTypes || ['dine_in', 'delivery', 'takeaway'],
+      openingHours: restaurant.openingHours || {
+        monday: { open: '09:00', close: '22:00', closed: false },
+        tuesday: { open: '09:00', close: '22:00', closed: false },
+        wednesday: { open: '09:00', close: '22:00', closed: false },
+        thursday: { open: '09:00', close: '22:00', closed: false },
+        friday: { open: '09:00', close: '23:00', closed: false },
+        saturday: { open: '10:00', close: '23:00', closed: false },
+        sunday: { open: '10:00', close: '21:00', closed: false }
+      },
+      deliveryTime: restaurant.deliveryTime || { min: 30, max: 45 },
+      deliveryFee: restaurant.deliveryFee ?? 2.99,
+      freeDeliveryThreshold: restaurant.freeDeliveryThreshold || 25
+    });
+    setAvatarUrl(restaurant.avatar || '');
+    setBannerUrl(restaurant.banner || '');
+    setActualTables(restaurant.tables || []);
+    fetchPromoCodes();
+  }
+}, [restaurant]);
 
   // Helper function to safely parse time strings
   const parseTimeToMinutes = (timeString, fallback = '00:00') => {
@@ -500,38 +501,57 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage({ type: '', text: '' });
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setMessage({ type: '', text: '' });
 
-    try {
-      const response = await fetch(`/api/restaurants/${restaurant._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          avatar: avatarUrl,
-          banner: bannerUrl
-        }),
-      });
+  try {
+    // Prepare update data with tables array
+    const updateData = {
+      name: formData.name,
+      description: formData.description,
+      address: formData.address,
+      phone: formData.phone,
+      cuisineType: formData.cuisineType,
+      isOpen: formData.isOpen,
+      orderTypes: formData.orderTypes,
+      openingHours: formData.openingHours,
+      deliveryTime: formData.deliveryTime,
+      deliveryFee: formData.deliveryFee,
+      freeDeliveryThreshold: formData.freeDeliveryThreshold,
+      avatar: avatarUrl,
+      banner: bannerUrl,
+      // Don't send totalTables or availableTables - they're handled by the tables array
+    };
 
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'Restaurant information updated successfully!' });
-        onUpdate();
-      } else {
-        const errorData = await response.json();
-        setMessage({ type: 'error', text: errorData.error || 'Failed to update restaurant information' });
-      }
-    } catch (error) {
-      console.error('Error updating restaurant:', error);
-      setMessage({ type: 'error', text: 'Error updating restaurant information' });
-    } finally {
-      setLoading(false);
+    // Only send totalTables if it's different from current restaurant
+    if (restaurant && formData.totalTables !== restaurant.totalTables) {
+      updateData.totalTables = formData.totalTables;
     }
-  };
+
+    const response = await fetch(`/api/restaurants/${restaurant._id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updateData),
+    });
+
+    if (response.ok) {
+      setMessage({ type: 'success', text: 'Restaurant information updated successfully!' });
+      onUpdate();
+    } else {
+      const errorData = await response.json();
+      setMessage({ type: 'error', text: errorData.error || 'Failed to update restaurant information' });
+    }
+  } catch (error) {
+    console.error('Error updating restaurant:', error);
+    setMessage({ type: 'error', text: 'Error updating restaurant information' });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleTogglePromoStatus = async (promoId, currentStatus) => {
     try {
@@ -1410,48 +1430,59 @@ export default function RestaurantInfo({ restaurant, onUpdate }) {
                       />
                     </div>
 
-                    {/* Table Management */}
-                    <div className="pt-8 border-t border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-6">Capacity Management</h3>
 
-                      <div className="grid md:grid-cols-2 gap-8">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-900 mb-3">
-                            Total Tables
-                          </label>
-                          <input
-                            type="number"
-                            name="totalTables"
-                            min="1"
-                            value={formData.totalTables}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                          />
-                        </div>
+{/* Table Management */}
+<div className="pt-8 border-t border-gray-200">
+  <h3 className="text-lg font-semibold text-gray-900 mb-6">Table Configuration</h3>
 
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-900 mb-3">
-                            Available Tables
-                          </label>
-                          <input
-                            type="number"
-                            name="availableTables"
-                            min="0"
-                            max={formData.totalTables}
-                            value={formData.availableTables}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                          />
-                        </div>
-                      </div>
+  <div className="space-y-4">
+    <div>
+      <label className="block text-sm font-semibold text-gray-900 mb-3">
+        Total Number of Tables
+      </label>
+      <input
+        type="number"
+        name="totalTables"
+        min="1"
+        max="50"
+        value={formData.totalTables}
+        onChange={handleInputChange}
+        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+      />
+      <p className="text-sm text-gray-500 mt-1">
+        Set the total number of tables in your restaurant
+      </p>
+    </div>
 
-                      <div className="mt-4 p-4 bg-blue-50 rounded-xl">
-                        <p className="text-sm text-blue-700">
-                          Capacity: <span className="font-semibold">{formData.totalTables}</span> total tables,
-                          <span className="font-semibold"> {formData.availableTables}</span> currently available
-                        </p>
-                      </div>
-                    </div>
+    <div className="p-4 bg-blue-50 rounded-xl">
+      <h4 className="font-semibold text-blue-900 mb-2">Table Layout Preview</h4>
+      <div className="grid grid-cols-5 gap-2">
+        {Array.from({ length: Math.min(formData.totalTables, 25) }).map((_, i) => (
+          <div key={i} className="relative">
+            <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center mx-auto border-2 border-blue-300">
+              <span className="font-bold text-blue-800">{i + 1}</span>
+            </div>
+            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+              <div className="flex space-x-1">
+                {[...Array(4)].map((_, chairIndex) => (
+                  <div key={chairIndex} className="w-2 h-3 bg-blue-600 rounded-sm"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {formData.totalTables > 25 && (
+        <p className="text-sm text-gray-600 mt-2 text-center">
+          +{formData.totalTables - 25} more tables
+        </p>
+      )}
+      <p className="text-sm text-blue-700 mt-3">
+        Tables are configured with 4 chairs by default. Waiters can adjust individual table settings in their dashboard.
+      </p>
+    </div>
+  </div>
+</div>
 
                     <div className="flex justify-end space-x-4 pt-8 border-t border-gray-200">
                       <button

@@ -1,6 +1,31 @@
 // models/Restaurant.js
 import mongoose from 'mongoose';
 
+
+
+const TableSchema = new mongoose.Schema({
+  number: {
+    type: Number,
+    required: true
+  },
+  chairs: {
+    type: Number,
+    default: 4,
+    min: 2,
+    max: 8
+  },
+  status: {
+    type: String,
+    enum: ['available', 'occupied', 'reserved', 'cleaning', 'unavailable'], // Add 'unavailable' here
+    default: 'available'
+  },
+  section: {
+    type: String,
+    enum: ['main', 'terrace', 'vip', 'bar'],
+    default: 'main'
+  }
+});
+
 const RestaurantSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -26,18 +51,15 @@ const RestaurantSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  // Add sudden close functionality
   isOpen: {
     type: Boolean,
     default: true
   },
-  // Add order types configuration
   orderTypes: {
     type: [String],
     enum: ['dine_in', 'delivery', 'takeaway'],
     default: ['dine_in', 'delivery', 'takeaway']
   },
-  // Add opening hours
   openingHours: {
     monday: { open: String, close: String, closed: { type: Boolean, default: false } },
     tuesday: { open: String, close: String, closed: { type: Boolean, default: false } },
@@ -47,18 +69,8 @@ const RestaurantSchema = new mongoose.Schema({
     saturday: { open: String, close: String, closed: { type: Boolean, default: false } },
     sunday: { open: String, close: String, closed: { type: Boolean, default: false } }
   },
-  // Add table management fields
-  totalTables: {
-    type: Number,
-    default: 10,
-    min: 1
-  },
-  availableTables: {
-    type: Number,
-    default: 10,
-    min: 0
-  },
-  // Add avatar and banner fields
+  // Table management - using a separate schema
+  tables: [TableSchema],
   avatar: {
     type: String,
     default: ''
@@ -67,7 +79,6 @@ const RestaurantSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  // Add delivery settings
   deliveryTime: {
     min: {
       type: Number,
@@ -94,7 +105,6 @@ const RestaurantSchema = new mongoose.Schema({
     min: 0,
     max: 200
   },
-  
   promoCodes: [{
     code: {
       type: String,
@@ -153,11 +163,31 @@ RestaurantSchema.pre('save', function(next) {
   if (this.isModified('name')) {
     this.slug = this.name
       .toLowerCase()
-      .replace(/[^a-z0-9 -]/g, '') // remove invalid chars
-      .replace(/\s+/g, '-') // replace spaces with -
-      .replace(/-+/g, '-') // replace multiple - with single -
+      .replace(/[^a-z0-9 -]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
       .trim('-');
   }
+  next();
+});
+
+// Pre-save middleware to ensure tables array exists and is valid
+RestaurantSchema.pre('save', function(next) {
+  // Ensure tables array exists and is properly formatted
+  if (!this.tables || !Array.isArray(this.tables)) {
+    this.tables = [];
+  }
+  
+  // Ensure each table has a number
+  this.tables.forEach((table, index) => {
+    if (!table.number) {
+      table.number = index + 1;
+    }
+  });
+  
+  // Update totalTables from tables array length
+  this.totalTables = this.tables.length;
+  
   next();
 });
 

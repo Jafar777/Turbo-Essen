@@ -28,13 +28,46 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Handle openingHours structure to ensure proper format
+    // Handle table creation when totalTables changes
+    if (updateData.totalTables !== undefined) {
+      const newTotalTables = parseInt(updateData.totalTables);
+      
+      // Initialize tables array if it doesn't exist
+      if (!restaurant.tables || !Array.isArray(restaurant.tables)) {
+        restaurant.tables = [];
+      }
+      
+      const currentTotalTables = restaurant.tables.length;
+      
+      if (newTotalTables > currentTotalTables) {
+        // Add new tables
+        const startNumber = currentTotalTables + 1;
+        for (let i = startNumber; i <= newTotalTables; i++) {
+          restaurant.tables.push({
+            number: i,
+            chairs: 4,
+            status: 'available',
+            section: 'main'
+          });
+        }
+      } else if (newTotalTables < currentTotalTables) {
+        // Remove extra tables (keep first N tables)
+        restaurant.tables = restaurant.tables.slice(0, newTotalTables);
+      }
+      
+      // Update the totalTables field
+      restaurant.totalTables = newTotalTables;
+      
+      // Remove totalTables from updateData to avoid conflict
+      delete updateData.totalTables;
+    }
+
+    // Handle openingHours structure
     if (updateData.openingHours) {
       const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       
       days.forEach(day => {
         if (updateData.openingHours[day]) {
-          // Ensure each day has the proper structure
           updateData.openingHours[day] = {
             open: updateData.openingHours[day].open || '09:00',
             close: updateData.openingHours[day].close || '22:00',
@@ -44,21 +77,36 @@ export async function PUT(request, { params }) {
       });
     }
 
-    // Update the restaurant
-    const updatedRestaurant = await Restaurant.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    );
+    // Update all other fields except tables (handled above)
+    const fieldsToUpdate = Object.keys(updateData).filter(key => key !== 'tables');
+    fieldsToUpdate.forEach(key => {
+      restaurant[key] = updateData[key];
+    });
+
+    // Save the restaurant
+    await restaurant.save();
 
     return NextResponse.json({ 
       success: true, 
-      restaurant: updatedRestaurant 
+      restaurant: restaurant.toObject(),
+      message: 'Restaurant updated successfully'
     });
 
   } catch (error) {
     console.error('Error updating restaurant:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message).join(', ');
+      return NextResponse.json({ 
+        error: 'Validation failed', 
+        details: validationErrors 
+      }, { status: 400 });
+    }
+    
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      message: error.message 
+    }, { status: 500 });
   }
 }
 
@@ -66,7 +114,6 @@ export async function GET(request, { params }) {
   try {
     const { id } = await params;
     
-    // Check if the ID is a valid MongoDB ObjectId
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       return NextResponse.json({ 
         success: false, 
