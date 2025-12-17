@@ -8,6 +8,51 @@ import Restaurant from '@/models/Restaurant';
 import User from '@/models/User';
 import { sendOrderStatusEmail } from '@/lib/order-email-notifications';
 
+// Helper function to update user loyalty
+const updateUserLoyalty = async (userId, restaurantId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    let loyaltyStat = user.loyaltyStats?.find(
+      stat => stat.restaurantId.toString() === restaurantId
+    );
+
+    if (!loyaltyStat) {
+      loyaltyStat = {
+        restaurantId,
+        orderCount: 0,
+        lastOrderDate: null,
+        earnedDiscounts: []
+      };
+      if (!user.loyaltyStats) user.loyaltyStats = [];
+      user.loyaltyStats.push(loyaltyStat);
+    }
+
+    loyaltyStat.orderCount += 1;
+    loyaltyStat.lastOrderDate = new Date();
+
+    // Check if user reached threshold
+    const restaurant = await Restaurant.findById(restaurantId).select('loyaltySystem');
+    if (restaurant?.loyaltySystem?.isActive) {
+      const threshold = restaurant.loyaltySystem.ordersThreshold;
+      if (loyaltyStat.orderCount >= threshold) {
+        // Reset count and give discount
+        loyaltyStat.orderCount = 0;
+        loyaltyStat.earnedDiscounts.push({
+          dateEarned: new Date(),
+          discountPercentage: restaurant.loyaltySystem.discountPercentage,
+          used: false
+        });
+      }
+    }
+
+    await user.save();
+  } catch (error) {
+    console.error('Error updating user loyalty:', error);
+  }
+};
+
 // PUT: Update order status
 export async function PUT(request, { params }) {
   try {
@@ -91,36 +136,41 @@ export async function PUT(request, { params }) {
 
     // Send email notifications for specific status changes
     if (oldStatus !== status) {
-  try {
-    // Get user details for email
-    const user = await User.findById(order.userId).select('firstName email');
-    
-    if (user && ['accepted', 'on_the_way', 'delivered'].includes(status)) {
-      // Convert the order to a plain JavaScript object for email function
-      const orderForEmail = {
-        _id: order._id.toString(), // Convert to string
-        restaurantName: order.restaurantName,
-        total: order.total
-      };
-      
-      // Send email notification (don't await to avoid blocking the response)
-      sendOrderStatusEmail(user.email, orderForEmail, status, user.firstName)
-        .then(sent => {
-          if (sent) {
-            console.log(`Order status email sent for order ${order._id}, status: ${status}`);
-          } else {
-            console.error(`Failed to send order status email for order ${order._id}`);
-          }
-        })
-        .catch(emailError => {
-          console.error('Error in email sending:', emailError);
-        });
+      try {
+        // Get user details for email
+        const user = await User.findById(order.userId).select('firstName email');
+        
+        if (user && ['accepted', 'on_the_way', 'delivered'].includes(status)) {
+          // Convert the order to a plain JavaScript object for email function
+          const orderForEmail = {
+            _id: order._id.toString(), // Convert to string
+            restaurantName: order.restaurantName,
+            total: order.total
+          };
+          
+          // Send email notification (don't await to avoid blocking the response)
+          sendOrderStatusEmail(user.email, orderForEmail, status, user.firstName)
+            .then(sent => {
+              if (sent) {
+                console.log(`Order status email sent for order ${order._id}, status: ${status}`);
+              } else {
+                console.error(`Failed to send order status email for order ${order._id}`);
+              }
+            })
+            .catch(emailError => {
+              console.error('Error in email sending:', emailError);
+            });
+        }
+      } catch (emailError) {
+        console.error('Error preparing to send email:', emailError);
+        // Don't fail the request if email fails
+      }
     }
-  } catch (emailError) {
-    console.error('Error preparing to send email:', emailError);
-    // Don't fail the request if email fails
-  }
-}
+
+    // Update user loyalty if order is delivered
+    if (status === 'delivered') {
+      await updateUserLoyalty(order.userId, order.restaurantId);
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -193,54 +243,4 @@ export async function GET(request, { params }) {
       { status: 500 }
     );
   }
-}
-
-const updateUserLoyalty = async (userId, restaurantId) => {
-  try {
-    const user = await User.findById(userId);
-    if (!user) return;
-
-    let loyaltyStat = user.loyaltyStats?.find(
-      stat => stat.restaurantId.toString() === restaurantId
-    );
-
-    if (!loyaltyStat) {
-      loyaltyStat = {
-        restaurantId,
-        orderCount: 0,
-        lastOrderDate: null,
-        earnedDiscounts: []
-      };
-      if (!user.loyaltyStats) user.loyaltyStats = [];
-      user.loyaltyStats.push(loyaltyStat);
-    }
-
-    loyaltyStat.orderCount += 1;
-    loyaltyStat.lastOrderDate = new Date();
-
-    // Check if user reached threshold
-    const restaurant = await Restaurant.findById(restaurantId).select('loyaltySystem');
-    if (restaurant?.loyaltySystem?.isActive) {
-      const threshold = restaurant.loyaltySystem.ordersThreshold;
-      if (loyaltyStat.orderCount >= threshold) {
-        // Reset count and give discount
-        loyaltyStat.orderCount = 0;
-        loyaltyStat.earnedDiscounts.push({
-          dateEarned: new Date(),
-          discountPercentage: restaurant.loyaltySystem.discountPercentage,
-          used: false
-        });
-      }
-    }
-
-    await user.save();
-  } catch (error) {
-    console.error('Error updating user loyalty:', error);
-  }
-};
-
-// Call this function when an order is delivered
-// In the PUT handler, after updating order status:
-if (status === 'delivered') {
-  updateUserLoyalty(order.userId, order.restaurantId);
 }
