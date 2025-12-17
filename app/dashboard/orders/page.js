@@ -286,9 +286,9 @@ export default function OrdersPage() {
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-blue-800">Delivery Instructions</h3>
                   <div className="mt-2 text-sm text-blue-700">
-                    <p>1. Click "Start Location Sharing" when you begin delivery</p>
+                    <p>1. Click Start Location Sharing when you begin delivery</p>
                     <p>2. Customers will see your live position on their map</p>
-                    <p>3. Click "Mark as Delivered" when order is delivered</p>
+                    <p>3. Click Mark as Delivered when order is delivered</p>
                   </div>
                 </div>
               </div>
