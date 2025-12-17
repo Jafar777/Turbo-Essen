@@ -1,15 +1,19 @@
 // app/dashboard/orders/page.js
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast';
+import LiveOrderTracker from '@/components/LiveOrderTracker';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [locationSharing, setLocationSharing] = useState({});
+  const [currentPosition, setCurrentPosition] = useState(null);
+  const locationWatchers = useRef({});
+  
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -24,6 +28,14 @@ export default function OrdersPage() {
     fetchOrders();
   }, [session, status, router]);
 
+  useEffect(() => {
+    return () => {
+      Object.values(locationWatchers.current).forEach(watcherId => {
+        if (watcherId) navigator.geolocation.clearWatch(watcherId);
+      });
+    };
+  }, []);
+
   const fetchOrders = async () => {
     try {
       const response = await fetch('/api/orders');
@@ -33,27 +45,30 @@ export default function OrdersPage() {
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
+      showToast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
   };
 
   const updateOrderStatus = async (orderId, newStatus) => {
-    // Allow restaurant owners and delivery persons to update status
     if (session.user.role !== 'restaurant_owner' && session.user.role !== 'delivery') return;
     
     setUpdating(orderId);
     try {
       const response = await fetch(`/api/orders/${orderId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
 
       if (response.ok) {
         showToast.success(`Order status updated to ${getStatusText(newStatus)}`);
+        
+        if (newStatus === 'delivered') {
+          stopLocationSharing(orderId);
+        }
+        
         fetchOrders();
       } else {
         const errorData = await response.json();
@@ -65,6 +80,93 @@ export default function OrdersPage() {
     } finally {
       setUpdating(null);
     }
+  };
+
+  const startLocationSharing = async (orderId) => {
+    if (!('geolocation' in navigator)) {
+      showToast.error('Geolocation is not supported by your browser');
+      return;
+    }
+
+    try {
+      const permission = await navigator.permissions.query({ name: 'geolocation' });
+      if (permission.state === 'denied') {
+        showToast.error('Please enable location permissions in your browser settings');
+        return;
+      }
+    } catch (err) {
+      console.log('Permission query not supported, continuing...');
+    }
+
+    setLocationSharing(prev => ({ ...prev, [orderId]: true }));
+    showToast.success('Started sharing your location with customer');
+
+    if (locationWatchers.current[orderId]) {
+      navigator.geolocation.clearWatch(locationWatchers.current[orderId]);
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      async (position) => {
+        const locationData = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          bearing: position.coords.heading || 0,
+          speed: position.coords.speed || 0,
+          accuracy: position.coords.accuracy,
+          timestamp: new Date().toISOString()
+        };
+
+        setCurrentPosition(locationData);
+
+        try {
+          const response = await fetch(`/api/delivery/${orderId}/location`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(locationData)
+          });
+
+          if (!response.ok) {
+            console.error('Failed to send location update');
+          }
+        } catch (error) {
+          console.error('Error sending location:', error);
+        }
+      },
+      (error) => {
+        console.error('GPS Error:', error);
+        let errorMessage = 'Error getting location';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Location permission denied';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location information unavailable';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Location request timed out';
+            break;
+        }
+        showToast.error(errorMessage);
+        stopLocationSharing(orderId);
+      },
+      { 
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 10000
+      }
+    );
+
+    locationWatchers.current[orderId] = watchId;
+  };
+
+  const stopLocationSharing = (orderId) => {
+    if (locationWatchers.current[orderId]) {
+      navigator.geolocation.clearWatch(locationWatchers.current[orderId]);
+      delete locationWatchers.current[orderId];
+    }
+    
+    setLocationSharing(prev => ({ ...prev, [orderId]: false }));
+    showToast.info('Stopped sharing location');
   };
 
   const getStatusColor = (status) => {
@@ -156,7 +258,6 @@ export default function OrdersPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
             {isRestaurantOwner ? 'Restaurant Orders' : 
@@ -170,9 +271,29 @@ export default function OrdersPage() {
               : isAdmin
               ? 'View and manage all system orders'
               : isDeliveryPerson
-              ? 'Deliver orders to customers'
+              ? 'Deliver orders to customers and share your live location'
               : 'Track your orders and their status'}
           </p>
+          
+          {isDeliveryPerson && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">Delivery Instructions</h3>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p>1. Click "Start Location Sharing" when you begin delivery</p>
+                    <p>2. Customers will see your live position on their map</p>
+                    <p>3. Click "Mark as Delivered" when order is delivered</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {orders.length === 0 ? (
@@ -201,10 +322,8 @@ export default function OrdersPage() {
           <div className="space-y-6">
             {orders.map((order) => {
               const nextStatuses = isRestaurantOwner ? getNextStatus(order.status) : [];
-              // Calculate final total with fallbacks for old orders
               const tipAmount = order.tipAmount || 0;
               const orderTotal = order.total || 0;
-              // For old orders without finalTotal, calculate it from total + tipAmount
               const finalTotal = order.finalTotal || (orderTotal + (order.orderType === 'delivery' ? tipAmount : 0));
               
               return (
@@ -233,7 +352,6 @@ export default function OrdersPage() {
                         {getStatusText(order.status)}
                       </span>
                       
-                      {/* Status Update Buttons for Restaurant Owners */}
                       {isRestaurantOwner && nextStatuses.length > 0 && (
                         <div className="flex gap-2">
                           {nextStatuses.map((status) => (
@@ -253,43 +371,95 @@ export default function OrdersPage() {
                         </div>
                       )}
 
-                      {/* Status Update Button for Delivery Persons */}
-                      {isDeliveryPerson && order.status === 'on_the_way' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => updateOrderStatus(order._id, 'delivered')}
-                            disabled={updating === order._id}
-                            className="px-3 py-1 text-sm font-medium bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
-                          >
-                            {updating === order._id ? '...' : 'Mark as Delivered'}
-                          </button>
+                      {isDeliveryPerson && order.orderType === 'delivery' && (
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          {order.status === 'on_the_way' && (
+                            <div className="flex gap-2">
+                              {!locationSharing[order._id] ? (
+                                <button
+                                  onClick={() => startLocationSharing(order._id)}
+                                  disabled={updating === order._id}
+                                  className="px-3 py-1 text-sm font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  Start Sharing
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => stopLocationSharing(order._id)}
+                                  disabled={updating === order._id}
+                                  className="px-3 py-1 text-sm font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Stop Sharing
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          
+                          {order.status === 'on_the_way' && (
+                            <button
+                              onClick={() => updateOrderStatus(order._id, 'delivered')}
+                              disabled={updating === order._id}
+                              className="px-3 py-1 text-sm font-medium bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                            >
+                              {updating === order._id ? '...' : 'Mark Delivered'}
+                            </button>
+                          )}
+                          
+                          {locationSharing[order._id] && currentPosition && (
+                            <div className="mt-2 sm:mt-0 sm:ml-2 text-xs text-gray-500 flex items-center">
+                              <span className="inline-flex h-2 w-2 rounded-full bg-green-400 animate-pulse mr-1"></span>
+                              Sharing: {currentPosition.lat.toFixed(4)}, {currentPosition.lng.toFixed(4)}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Delivery Location Information - Show for restaurant owners, admins, and delivery persons when order is on the way */}
+                  {/* Delivery Location Information */}
                   {(isRestaurantOwner || isAdmin || isDeliveryPerson) && 
                    order.orderType === 'delivery' && 
                    order.deliveryLocation && 
                    (isRestaurantOwner || isAdmin || order.status === 'on_the_way') && (
                     <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <h4 className="font-semibold text-blue-900 mb-3 flex items-center">
-                        <span className="mr-2">📍</span>
-                        Delivery Location
-                      </h4>
+                      <div className="flex justify-between items-start mb-3">
+                        <h4 className="font-semibold text-blue-900 flex items-center">
+                          <span className="mr-2">📍</span>
+                          Delivery Location
+                        </h4>
+                        
+                        {isDeliveryPerson && order.deliveryLocation.coordinates && (
+                          <button
+                            onClick={() => openGoogleMaps(order.deliveryLocation.coordinates, order.deliveryLocation.address)}
+                            className="px-3 py-1 text-sm font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                            </svg>
+                            Navigate
+                          </button>
+                        )}
+                      </div>
+                      
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm font-medium text-gray-700">Address</p>
-                          <p className="text-gray-900">{order.deliveryLocation.address || 'No address'}</p>
+                          <p className="text-gray-900 font-medium">{order.deliveryLocation.address || 'No address'}</p>
                           
-                          {order.deliveryLocation.coordinates && (
+                          {order.deliveryLocation.coordinates && !isDeliveryPerson && (
                             <button
                               onClick={() => openGoogleMaps(order.deliveryLocation.coordinates, order.deliveryLocation.address)}
                               className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
                             >
                               <span className="mr-1">🗺️</span>
-                              Open in Google Maps
+                              Open in Maps
                             </button>
                           )}
                         </div>
@@ -311,13 +481,21 @@ export default function OrdersPage() {
                           
                           {order.deliveryLocation.instructions && (
                             <div>
-                              <p className="text-sm font-medium text-gray-700">Delivery Instructions</p>
-                              <p className="text-gray-900">{order.deliveryLocation.instructions}</p>
+                              <p className="text-sm font-medium text-gray-700">Instructions</p>
+                              <p className="text-gray-900 bg-yellow-50 p-2 rounded">{order.deliveryLocation.instructions}</p>
                             </div>
                           )}
                         </div>
                       </div>
                     </div>
+                  )}
+
+                  {/* Live Tracking Component for Customers */}
+                  {isUser && order.orderType === 'delivery' && order.status === 'on_the_way' && order.deliveryLocation?.coordinates && (
+                    <LiveOrderTracker 
+                      orderId={order._id}
+                      destination={order.deliveryLocation.coordinates}
+                    />
                   )}
 
                   {/* Table Information for Dine-in Orders */}
@@ -359,7 +537,6 @@ export default function OrdersPage() {
 
                     <div className="border-t border-gray-200 mt-4 pt-4">
                       <div className="space-y-2">
-                        {/* Show tip amount for delivery orders */}
                         {tipAmount > 0 && order.orderType === 'delivery' && (
                           <div className="flex justify-between">
                             <span className="text-gray-600">Delivery Tip</span>
@@ -379,7 +556,6 @@ export default function OrdersPage() {
                             )}
                           </div>
                           <div className="text-right">
-                            {/* Show subtotal if there's a tip */}
                             {tipAmount > 0 && order.orderType === 'delivery' && (
                               <p className="text-sm text-gray-600 line-through">
                                 Subtotal: ${orderTotal.toFixed(2)}

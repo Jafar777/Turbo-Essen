@@ -33,7 +33,20 @@ const OrderItemSchema = new mongoose.Schema({
   restaurantName: {
     type: String,
     required: true
-  }
+  },
+  deliveryPersonLocation: {
+  lat: Number,
+  lng: Number,
+  bearing: Number,
+  speed: Number,
+  accuracy: Number,
+  timestamp: Date
+},
+lastLocationUpdate: Date,
+assignedTo: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User'
+}
 });
 
 const DeliveryLocationSchema = new mongoose.Schema({
