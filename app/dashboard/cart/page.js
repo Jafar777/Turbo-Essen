@@ -33,6 +33,8 @@ export default function CartPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [restaurantOrderTypes, setRestaurantOrderTypes] = useState(['dine_in', 'delivery', 'takeaway']);
+  const [tipAmount, setTipAmount] = useState(0);
+  const [specialInstructions, setSpecialInstructions] = useState('');
 
   // Set default order type based on available options
   useEffect(() => {
@@ -120,25 +122,25 @@ export default function CartPage() {
     }
   };
 
- // In your cart page component, replace the fetchAvailableTables function:
-const fetchAvailableTables = async () => {
-  try {
-    if (cart && cart.items && cart.items.length > 0) {
-      const restaurantId = cart.items[0].restaurantId;
-      // Use the new endpoint
-      const response = await fetch(`/api/restaurants/available-tables?restaurantId=${restaurantId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableTables(data.tables || []);
+  // In your cart page component, replace the fetchAvailableTables function:
+  const fetchAvailableTables = async () => {
+    try {
+      if (cart && cart.items && cart.items.length > 0) {
+        const restaurantId = cart.items[0].restaurantId;
+        // Use the new endpoint
+        const response = await fetch(`/api/restaurants/available-tables?restaurantId=${restaurantId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableTables(data.tables || []);
+        }
+      } else {
+        setAvailableTables([]);
       }
-    } else {
+    } catch (error) {
+      console.error('Error fetching available tables:', error);
       setAvailableTables([]);
     }
-  } catch (error) {
-    console.error('Error fetching available tables:', error);
-    setAvailableTables([]);
-  }
-};
+  };
 
   // Add another useEffect to fetch tables when cart is updated
   useEffect(() => {
@@ -257,6 +259,9 @@ const fetchAvailableTables = async () => {
         paymentMethod: selectedPayment,
         items: cart.items,
         total: cart.total,
+        tipAmount: selectedOrderType === 'delivery' ? tipAmount : 0,
+        finalTotal: cart.total + (selectedOrderType === 'delivery' ? tipAmount : 0),
+        specialInstructions: specialInstructions,
         orderType: selectedOrderType
       };
 
@@ -340,6 +345,9 @@ const fetchAvailableTables = async () => {
   const cartTotal = cart?.total || 0;
   const itemCount = cart?.itemCount || cartItems.reduce((total, item) => total + item.quantity, 0);
 
+  // Calculate final total including tip for delivery orders
+  const finalTotal = selectedOrderType === 'delivery' ? cartTotal + tipAmount : cartTotal;
+
   // Filter available tables for dine-in
   const availableTableNumbers = availableTables
     .filter(table => table.status === 'available')
@@ -368,7 +376,7 @@ const fetchAvailableTables = async () => {
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
               <p className="text-gray-600 mb-8">
-                Looks like you havent added any delicious items to your cart yet.
+                Looks like you haven't added any delicious items to your cart yet.
               </p>
               <Link
                 href="/order-now"
@@ -473,14 +481,37 @@ const fetchAvailableTables = async () => {
                     <span className="text-gray-600">Subtotal ({itemCount} items)</span>
                     <span className="font-medium">${cartTotal?.toFixed(2)}</span>
                   </div>
+                  
+                  {/* Show tip amount for delivery orders */}
+                  {selectedOrderType === 'delivery' && tipAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Delivery Tip</span>
+                      <span className="font-medium text-green-600">+${tipAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  
                   <div className="border-t border-gray-200 pt-3">
                     <div className="flex justify-between text-lg font-semibold">
-                      <span>Total</span>
+                      <span>Final Total</span>
                       <span className="text-amber-600">
-                        ${cartTotal?.toFixed(2)}
+                        ${finalTotal.toFixed(2)}
                       </span>
                     </div>
                   </div>
+                </div>
+
+                {/* Special Instructions */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                    Special Instructions (Optional)
+                  </h3>
+                  <textarea
+                    value={specialInstructions}
+                    onChange={(e) => setSpecialInstructions(e.target.value)}
+                    placeholder="Any special requests for your order?"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                    rows={3}
+                  />
                 </div>
 
                 {/* Order Type Selection */}
@@ -606,6 +637,60 @@ const fetchAvailableTables = async () => {
                   )}
                 </div>
 
+                {/* Tip Selection (Only for Delivery) */}
+                {selectedOrderType === 'delivery' && restaurantOrderTypes.includes('delivery') && (
+                  <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                      💝 Tip Your Delivery Person (Optional)
+                    </h3>
+                    <div className="space-y-2">
+                      <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input
+                          type="radio"
+                          name="tip"
+                          checked={tipAmount === 0}
+                          onChange={() => setTipAmount(0)}
+                          className="h-4 w-4 text-amber-500"
+                        />
+                        <span className="text-gray-700">No tip</span>
+                      </label>
+                      {[2, 5, 10].map((tip) => (
+                        <label key={tip} className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                          <input
+                            type="radio"
+                            name="tip"
+                            checked={tipAmount === tip}
+                            onChange={() => setTipAmount(tip)}
+                            className="h-4 w-4 text-amber-500"
+                          />
+                          <span className="text-gray-700">${tip} tip</span>
+                          <span className="text-sm text-gray-500 ml-auto">
+                            (Total: ${(cartTotal + tip).toFixed(2)})
+                          </span>
+                        </label>
+                      ))}
+                      <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input
+                          type="radio"
+                          name="tip"
+                          checked={tipAmount !== 0 && ![2, 5, 10].includes(tipAmount)}
+                          onChange={() => {
+                            const customTip = parseFloat(prompt('Enter custom tip amount ($):', '5')) || 0;
+                            setTipAmount(Math.max(0, customTip));
+                          }}
+                          className="h-4 w-4 text-amber-500"
+                        />
+                        <span className="text-gray-700">Custom tip amount</span>
+                        {tipAmount > 0 && ![2, 5, 10].includes(tipAmount) && (
+                          <span className="text-sm text-amber-600 ml-auto">
+                            ${tipAmount.toFixed(2)} selected
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 {/* Payment Method Selection */}
                 <div className="mb-6">
                   <h3 className="text-sm font-semibold text-gray-900 mb-3">
@@ -672,10 +757,10 @@ const fetchAvailableTables = async () => {
                   {isPlacingOrder
                     ? 'Placing Order...'
                     : selectedOrderType === 'delivery'
-                      ? 'Place Delivery Order'
+                      ? `Place Order ($${finalTotal.toFixed(2)})`
                       : selectedOrderType === 'dine_in'
-                        ? 'Place Dine-in Order'
-                        : 'Place Takeaway Order'}
+                        ? `Place Dine-in Order ($${finalTotal.toFixed(2)})`
+                        : `Place Takeaway Order ($${finalTotal.toFixed(2)})`}
                 </button>
 
                 <Link

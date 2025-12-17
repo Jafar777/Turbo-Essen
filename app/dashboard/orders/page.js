@@ -115,8 +115,8 @@ export default function OrdersPage() {
     };
 
     return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeStyles[orderType]}`}>
-        {typeLabels[orderType]}
+      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeStyles[orderType] || 'bg-gray-100 text-gray-800'}`}>
+        {typeLabels[orderType] || orderType}
       </span>
     );
   };
@@ -201,6 +201,11 @@ export default function OrdersPage() {
           <div className="space-y-6">
             {orders.map((order) => {
               const nextStatuses = isRestaurantOwner ? getNextStatus(order.status) : [];
+              // Calculate final total with fallbacks for old orders
+              const tipAmount = order.tipAmount || 0;
+              const orderTotal = order.total || 0;
+              // For old orders without finalTotal, calculate it from total + tipAmount
+              const finalTotal = order.finalTotal || (orderTotal + (order.orderType === 'delivery' ? tipAmount : 0));
               
               return (
                 <div key={order._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -209,17 +214,17 @@ export default function OrdersPage() {
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {isRestaurantOwner || isAdmin || isDeliveryPerson
-                            ? `Order from ${order.userName}` 
-                            : `Order from ${order.restaurantName}`}
+                            ? `Order from ${order.userName || 'Customer'}` 
+                            : `Order from ${order.restaurantName || 'Restaurant'}`}
                         </h3>
                         {getOrderTypeBadge(order.orderType)}
                       </div>
                       <p className="text-gray-600 text-sm">
-                        Order # {order._id.slice(-8).toUpperCase()} • {new Date(order.createdAt).toLocaleDateString()}
+                        Order # {order._id?.slice(-8).toUpperCase() || 'N/A'} • {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'Date N/A'}
                       </p>
                       {(isRestaurantOwner || isAdmin) && (
                         <p className="text-gray-600 text-sm">
-                          Customer: {order.userEmail}
+                          Customer: {order.userEmail || 'No email'}
                         </p>
                       )}
                     </div>
@@ -276,15 +281,17 @@ export default function OrdersPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm font-medium text-gray-700">Address</p>
-                          <p className="text-gray-900">{order.deliveryLocation.address}</p>
+                          <p className="text-gray-900">{order.deliveryLocation.address || 'No address'}</p>
                           
-                          <button
-                            onClick={() => openGoogleMaps(order.deliveryLocation.coordinates, order.deliveryLocation.address)}
-                            className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                          >
-                            <span className="mr-1">🗺️</span>
-                            Open in Google Maps
-                          </button>
+                          {order.deliveryLocation.coordinates && (
+                            <button
+                              onClick={() => openGoogleMaps(order.deliveryLocation.coordinates, order.deliveryLocation.address)}
+                              className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
+                            >
+                              <span className="mr-1">🗺️</span>
+                              Open in Google Maps
+                            </button>
+                          )}
                         </div>
                         
                         <div className="space-y-2">
@@ -328,7 +335,7 @@ export default function OrdersPage() {
 
                   <div className="border-t border-gray-200 pt-4">
                     <div className="space-y-3">
-                      {order.items.map((item, index) => (
+                      {(order.items || []).map((item, index) => (
                         <div key={index} className="flex justify-between items-center">
                           <div className="flex items-center space-x-3">
                             {item.dishImage && (
@@ -339,31 +346,51 @@ export default function OrdersPage() {
                               />
                             )}
                             <div>
-                              <p className="font-medium text-gray-900">{item.dishName}</p>
-                              <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                              <p className="font-medium text-gray-900">{item.dishName || 'Unknown Item'}</p>
+                              <p className="text-sm text-gray-500">Qty: {item.quantity || 1}</p>
                             </div>
                           </div>
                           <p className="font-medium text-gray-900">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                           </p>
                         </div>
                       ))}
                     </div>
 
-                    <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between items-center">
-                      <div>
-                        <p className="text-sm text-gray-600">
-                          Payment: {order.paymentMethod === 'cash' ? 'Cash on Delivery' : 'Credit Card'}
-                        </p>
-                        {order.specialInstructions && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            Instructions: {order.specialInstructions}
-                          </p>
+                    <div className="border-t border-gray-200 mt-4 pt-4">
+                      <div className="space-y-2">
+                        {/* Show tip amount for delivery orders */}
+                        {tipAmount > 0 && order.orderType === 'delivery' && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Delivery Tip</span>
+                            <span className="font-medium text-green-600">+${tipAmount.toFixed(2)}</span>
+                          </div>
                         )}
+                        
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-sm text-gray-600">
+                              Payment: {order.paymentMethod === 'cash' ? 'Cash on Delivery' : 'Credit Card'}
+                            </p>
+                            {order.specialInstructions && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                Instructions: {order.specialInstructions}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            {/* Show subtotal if there's a tip */}
+                            {tipAmount > 0 && order.orderType === 'delivery' && (
+                              <p className="text-sm text-gray-600 line-through">
+                                Subtotal: ${orderTotal.toFixed(2)}
+                              </p>
+                            )}
+                            <p className="text-lg font-bold text-amber-600">
+                              Total: ${finalTotal.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-lg font-bold text-amber-600">
-                        Total: ${order.total.toFixed(2)}
-                      </p>
                     </div>
                   </div>
                 </div>

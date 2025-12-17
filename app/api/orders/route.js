@@ -120,6 +120,8 @@ export async function GET(request) {
   }
 }
 
+
+
 // POST: Create a new order
 export async function POST(request) {
   try {
@@ -133,7 +135,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Only customers can place orders' }, { status: 403 });
     }
 
-    const { paymentMethod, items, total, specialInstructions, orderType, tableNumber, deliveryLocation } = await request.json();
+    // ADD specialInstructions TO THE DESTRUCTURING
+    const { 
+      paymentMethod, 
+      items, 
+      total, 
+      tipAmount = 0, 
+      finalTotal, 
+      specialInstructions = '', // Add this line
+      orderType, 
+      tableNumber, 
+      deliveryLocation 
+    } = await request.json();
 
     if (!items || items.length === 0) {
       return NextResponse.json(
@@ -173,6 +186,8 @@ export async function POST(request) {
       items,
       total,
       paymentMethod: paymentMethod || 'cash',
+      tipAmount: orderType === 'delivery' ? tipAmount : 0,
+      finalTotal: finalTotal || total,
       specialInstructions: specialInstructions || '',
       orderType: orderType || 'delivery',
       tableNumber: orderType === 'dine_in' ? tableNumber : undefined,

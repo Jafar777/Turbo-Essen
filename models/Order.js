@@ -135,7 +135,17 @@ const OrderSchema = new mongoose.Schema({
   specialInstructions: {
     type: String,
     default: ''
-  }
+  },
+    tipAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  finalTotal: {
+    type: Number,
+    required: true,
+    min: 0
+  },
 }, {
   timestamps: true
 });
