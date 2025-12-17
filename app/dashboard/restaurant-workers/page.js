@@ -2,8 +2,9 @@
 'use client';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { showToast } from '@/lib/toast';
+import ShiftPlanningCalendar from '@/components/ShiftPlanningCalendar';
 
 export default function RestaurantWorkersPage() {
   const { data: session, status } = useSession();
@@ -96,13 +97,13 @@ export default function RestaurantWorkersPage() {
 
       if (response.ok) {
         const result = await response.json();
-    showToast.success('Job offer sent successfully!');
+        showToast.success('Job offer sent successfully!');
         setFormData({ email: '', role: 'chef', message: '' });
         fetchSentOffers();
         setActiveTab('sent-offers');
       } else {
         const error = await response.json();
-    showToast.error(error.error || 'Failed to send job offer');
+        showToast.error(error.error || 'Failed to send job offer');
       }
     } catch (error) {
       console.error('Error sending job offer:', error);
@@ -120,13 +121,13 @@ export default function RestaurantWorkersPage() {
 
       if (response.ok) {
         fetchSentOffers();
-    showToast.success('Job offer withdrawn successfully');
+        showToast.success('Job offer withdrawn successfully');
       } else {
         alert('Failed to withdraw job offer');
       }
     } catch (error) {
       console.error('Error withdrawing job offer:', error);
-    showToast.error('Failed to withdraw job offer');
+      showToast.error('Failed to withdraw job offer');
     }
   };
 
@@ -146,11 +147,11 @@ export default function RestaurantWorkersPage() {
 
       if (response.ok) {
         const result = await response.json();
-    showToast.success(result.message || 'Employee role updated successfully');
+        showToast.success(result.message || 'Employee role updated successfully');
         fetchEmployees(); // Refresh the employees list
       } else {
         const error = await response.json();
-    showToast.error(error.error || 'Failed to update employee role');
+        showToast.error(error.error || 'Failed to update employee role');
       }
     } catch (error) {
       console.error('Error updating employee role:', error);
@@ -226,17 +227,17 @@ export default function RestaurantWorkersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
           <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-3xl p-8 shadow-2xl mb-8 relative overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative z-10">
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                Restaurant Workers
+                Restaurant Team Management
               </h1>
               <p className="text-amber-100 text-xl max-w-2xl mx-auto leading-relaxed">
-                Manage your team and send job offers to potential employees
+                Manage your team, schedule shifts, and streamline operations
               </p>
             </div>
           </div>
@@ -245,6 +246,20 @@ export default function RestaurantWorkersPage() {
         {/* Navigation Tabs */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 mb-8">
           <div className="flex flex-col sm:flex-row">
+            <button
+              onClick={() => setActiveTab('shift-planning')}
+              className={`flex-1 group px-8 py-6 font-semibold text-lg transition-all duration-300 relative overflow-hidden ${
+                activeTab === 'shift-planning'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-amber-700 hover:bg-amber-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-3">
+                <span className="text-2xl">📅</span>
+                <span>Shift Planning</span>
+              </div>
+            </button>
+            
             <button
               onClick={() => setActiveTab('employees')}
               className={`flex-1 group px-8 py-6 font-semibold text-lg transition-all duration-300 relative overflow-hidden ${
@@ -290,7 +305,16 @@ export default function RestaurantWorkersPage() {
         </div>
 
         {/* Tab Content */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden min-h-[600px]">
+          {/* Shift Planning Tab */}
+          {activeTab === 'shift-planning' && restaurant && (
+            <ShiftPlanningCalendar 
+              restaurant={restaurant}
+              employees={employees}
+              onEmployeeUpdate={fetchEmployees}
+            />
+          )}
+
           {/* Employees Tab */}
           {activeTab === 'employees' && (
             <div className="p-8">
@@ -303,7 +327,7 @@ export default function RestaurantWorkersPage() {
                     </svg>
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">No employees yet</h3>
-                  <p className="mb-4">You havent hired any employees for your restaurant.</p>
+                  <p className="mb-4">You haven't hired any employees for your restaurant.</p>
                   <button
                     onClick={() => setActiveTab('send-offer')}
                     className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-2 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-300"
@@ -318,6 +342,17 @@ export default function RestaurantWorkersPage() {
                       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-4 mb-3">
+                            {employee.avatar ? (
+                              <img
+                                src={employee.avatar}
+                                alt={`${employee.firstName} ${employee.lastName}`}
+                                className="w-12 h-12 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold">
+                                {employee.firstName?.charAt(0)}{employee.lastName?.charAt(0)}
+                              </div>
+                            )}
                             <div>
                               <h3 className="font-semibold text-gray-900 text-lg">
                                 {employee.firstName} {employee.lastName}
